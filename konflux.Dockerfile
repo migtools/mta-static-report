@@ -29,3 +29,11 @@ COPY --from=nodejs-builder /workspace/build /usr/local/static-report
 COPY --from=nodejs-builder /workspace/LICENSE /licenses/
 
 ENTRYPOINT ["js-bundle-generator"]
+
+LABEL \
+        description="Migration Toolkit for Applications - Static Report" \
+        io.k8s.description="Migration Toolkit for Applications - Static Report" \
+        io.k8s.display-name="MTA - Static Report" \
+        io.openshift.maintainer.project="MTA" \
+        io.openshift.tags="migration,modernization,mta,tackle,konveyor" \
+        summary="Migration Toolkit for Applications - Static Report"
