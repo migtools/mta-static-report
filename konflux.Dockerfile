@@ -21,8 +21,8 @@ RUN sed -i -e 's/\(name: "\)[^"]*"/\1Migration Toolkit for Applications"/' \
     src/layout/theme-constants.ts
 RUN npm clean-install --no-audit --verbose && CI=true PUBLIC_URL=. npm run build
 
-FROM registry.redhat.io/ubi9-minimal:latest
-RUN microdnf -y install openssl && microdnf -y clean all
+FROM registry.redhat.io/ubi9:latest
+RUN dnf -y install openssl && dnf -y clean all
 
 COPY --from=go-builder /workspace/analyzer-output-parser/js-bundle-generator /usr/bin/js-bundle-generator
 COPY --from=nodejs-builder /workspace/build /usr/local/static-report
