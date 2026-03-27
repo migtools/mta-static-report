@@ -1,11 +1,11 @@
-FROM registry.redhat.io/ubi9/go-toolset:1.23 AS go-builder
+FROM registry.redhat.io/ubi10/go-toolset:1.24 AS go-builder
 COPY --chown=1001:0 . /workspace
 WORKDIR /workspace/analyzer-output-parser
 
 ENV GOEXPERIMENT strictfipsruntime
 RUN CGO_ENABLED=1 go build -tags strictfipsruntime -o js-bundle-generator ./main.go
 
-FROM registry.redhat.io/ubi9/nodejs-18:latest AS nodejs-builder
+FROM registry.redhat.io/ubi10/nodejs-22:latest AS nodejs-builder
 COPY --chown=1001:0 . /workspace
 USER 1001
 WORKDIR /workspace
@@ -21,7 +21,7 @@ RUN sed -i -e 's/\(name: "\)[^"]*"/\1Migration Toolkit for Applications"/' \
     src/layout/theme-constants.ts
 RUN npm clean-install --no-audit --verbose && CI=true PUBLIC_URL=. npm run build
 
-FROM registry.redhat.io/ubi9:latest
+FROM registry.redhat.io/ubi10:latest
 RUN dnf -y install openssl && dnf -y clean all
 
 COPY --from=go-builder /workspace/analyzer-output-parser/js-bundle-generator /usr/bin/js-bundle-generator
