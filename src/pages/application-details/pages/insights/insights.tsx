@@ -11,7 +11,7 @@ export const Insights: React.FC = () => {
 
   return (
     <PageSection>
-      <Title headingLevel="h1" size="lg" className="pf-v5-u-mb-md">
+      <Title headingLevel="h1" size="lg" className="pf-v6-u-mb-md">
         Insights (Zero Effort Issues)
       </Title>
       <ViolationsTable applicationId={application?.id} insightsMode={true}/>

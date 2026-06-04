@@ -5,6 +5,7 @@ import {
   Button,
   Card,
   CardBody,
+  Content,
   Grid,
   GridItem,
   Stack,
@@ -14,8 +15,6 @@ import {
   SearchInput,
   CardHeader,
   CardTitle,
-  Text,
-  TextContent,
   Toolbar,
   ToolbarContent,
   ToolbarToggleGroup,
@@ -29,11 +28,9 @@ import FilterIcon from "@patternfly/react-icons/dist/esm/icons/filter-icon";
 import { useTable, useTableControls } from "@app/shared/hooks";
 
 import { IssueProcessed } from "@app/models/api-enriched";
-import {
-  ConditionalTableBody,
-  SimpleMarkdown,
-  SimplePagination,
-} from "@app/shared/components";
+import { ConditionalTableBody } from "@app/shared/components/table-controls/conditional-table-body";
+import { SimplePagination } from "@app/shared/components/table-controls/simple-pagination";
+import { SimpleMarkdown } from "@app/shared/components/simple-markdown";
 import { getMarkdown } from "@app/utils/utils";
 import { DispersedFile } from "@app/models/file";
 import { useDispersedFiles } from "@app/queries/report";
@@ -111,7 +108,7 @@ export const IssueOverview: React.FC<IIssueOverviewProps> = ({
             >
               <ToolbarContent>
                 <ToolbarToggleGroup toggleIcon={<FilterIcon />} breakpoint="xl">
-                  <ToolbarItem variant="search-filter">
+                  <ToolbarItem>
                     <SearchInput
                       value={filterText}
                       onChange={(_, value) => setFilterText(value)}
@@ -121,7 +118,7 @@ export const IssueOverview: React.FC<IIssueOverviewProps> = ({
                 </ToolbarToggleGroup>
                 <ToolbarItem
                   variant={ToolbarItemVariant.pagination}
-                  align={{ default: "alignRight" }}
+                  align={{ default: "alignEnd" }}
                 >
                   <SimplePagination
                     count={filteredItems.length}
@@ -182,11 +179,7 @@ export const IssueOverview: React.FC<IIssueOverviewProps> = ({
             <Card isCompact isFullHeight>
               <CardHeader>
                 <CardTitle>
-                  <TextContent>
-                    <>
-                      <Text component="h2">{issue.ruleID}</Text>
-                    </>
-                  </TextContent>
+                  <Content component="h2">{issue.ruleID}</Content>
                 </CardTitle>
               </CardHeader>
               <CardBody>

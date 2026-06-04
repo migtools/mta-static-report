@@ -7,14 +7,12 @@ import {
   CardTitle,
   Divider,
   EmptyState,
-  EmptyStateIcon,
   EmptyStateVariant,
   Gallery,
   GalleryItem,
   Label,
   LabelGroup,
   PageSection,
-  Title,
 } from "@patternfly/react-core";
 import InfoAltIcon from "@patternfly/react-icons/dist/esm/icons/info-alt-icon";
 
@@ -56,11 +54,7 @@ export const Technologies: React.FC = () => {
                         }
                       </LabelGroup>
                     ) : (
-                      <EmptyState variant={EmptyStateVariant.sm}>
-                        <EmptyStateIcon icon={InfoAltIcon} />
-                        <Title headingLevel="h4" size="md">
-                          No data to show
-                        </Title>
+                      <EmptyState variant={EmptyStateVariant.sm} icon={InfoAltIcon} headingLevel="h4" titleText="No data to show">
                       </EmptyState>
                     )
                   }

@@ -8,19 +8,16 @@ import {
   DescriptionListTerm,
   Label,
   PageSection,
-  PageSectionVariants,
   SearchInput,
   Split,
   SplitItem,
-  Text,
-  TextContent,
+  Content,
   Toolbar,
-  ToolbarChip,
-  ToolbarChipGroup,
   ToolbarContent,
   ToolbarFilter,
-  ToolbarGroup,
   ToolbarItem,
+  ToolbarLabel,
+  ToolbarLabelGroup,
   ToolbarItemVariant,
   ToolbarToggleGroup,
 } from "@patternfly/react-core";
@@ -145,16 +142,14 @@ export const ApplicationList: React.FC = () => {
 
   return (
     <>
-      <PageSection variant={PageSectionVariants.light}>
-        <TextContent>
-          <Text component="h1">Applications</Text>
-          <Text component="small">
-            This report lists all analyzed applications. Select an individual
-            application to show more details.
-          </Text>
-        </TextContent>
+      <PageSection>
+        <Content component="h1">Applications</Content>
+        <Content component="p">
+          This report lists all analyzed applications. Select an individual
+          application to show more details.
+        </Content>
       </PageSection>
-      <PageSection variant={PageSectionVariants.default}>
+      <PageSection>
         <Toolbar
           className="pf-m-toggle-group-container"
           collapseListedFiltersBreakpoint="xl"
@@ -162,7 +157,7 @@ export const ApplicationList: React.FC = () => {
         >
           <ToolbarContent>
             <ToolbarToggleGroup toggleIcon={<FilterIcon />} breakpoint="xl">
-              <ToolbarItem variant="search-filter">
+              <ToolbarItem>
                 <SearchInput
                   value={filterText}
                   onChange={(_, value) => setFilterText(value)}
@@ -171,14 +166,13 @@ export const ApplicationList: React.FC = () => {
                   }}
                 />
               </ToolbarItem>
-              <ToolbarGroup variant="filter-group">
-                <ToolbarFilter
-                  chips={filters.get("tag")}
-                  deleteChip={(
-                    category: string | ToolbarChipGroup,
-                    chip: ToolbarChip | string
-                  ) => removeFilter("tag", chip)}
-                  deleteChipGroup={() => setFilter("tag", [])}
+              <ToolbarFilter
+                  labels={filters.get("tag")}
+                  deleteLabel={(
+                    category: string | ToolbarLabelGroup,
+                    label: ToolbarLabel | string
+                  ) => removeFilter("tag", label)}
+                  deleteLabelGroup={() => setFilter("tag", [])}
                   categoryName={{ key: "tag", name: "Tag" }}
                 >
                   <SimpleSelect
@@ -215,11 +209,10 @@ export const ApplicationList: React.FC = () => {
                     onClear={() => setFilter("tag", [])}
                   />
                 </ToolbarFilter>
-              </ToolbarGroup>
             </ToolbarToggleGroup>
             <ToolbarItem
               variant={ToolbarItemVariant.pagination}
-              align={{ default: "alignRight" }}
+              align={{ default: "alignEnd" }}
             >
               <SimplePagination
                 count={filteredItems.length}
@@ -316,7 +309,7 @@ export const ApplicationList: React.FC = () => {
                   {isRowExpanded ? (
                     <Tr isExpanded>
                       <Td noPadding colSpan={6}>
-                        <div className="pf-v5-u-m-lg">
+                        <div className="pf-v6-u-m-lg">
                           {isCellSelected(item.id, ColumnKey.tags) && (
                             <Split hasGutter isWrappable>
                               {item.tagsFlat.map((e, index) => (

@@ -108,8 +108,8 @@ export const IncidentsSection: React.FC<IIncidentsSectionProps> = ({
   }, [applicationIssues]);
 
   return (
-    <Grid md={6}>
-      <GridItem>
+    <Grid hasGutter>
+      <GridItem md={6}>
         <Card isFullHeight>
           <CardTitle>Incidents</CardTitle>
           <CardBody>
@@ -134,7 +134,7 @@ export const IncidentsSection: React.FC<IIncidentsSectionProps> = ({
           </CardBody>
         </Card>
       </GridItem>
-      <GridItem>
+      <GridItem md={6}>
         <Card isFullHeight>
           <CardTitle>Incidents and Story Points</CardTitle>
           <CardBody>

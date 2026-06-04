@@ -6,7 +6,7 @@ import {
   GridItem,
   List,
   ListItem,
-  TextContent,
+  Content,
 } from "@patternfly/react-core";
 
 import { Theme } from "./theme-constants";
@@ -30,7 +30,7 @@ export const AboutApp: React.FC<IButtonAboutAppProps> = ({
       brandImageSrc={Theme.logoSrc}
       className="about-app__component"
     >
-      <TextContent>
+      <Content>
         <h4>About</h4>
         <p>
           <a href={Theme.websiteURL} target="_blank" rel="noopener noreferrer">
@@ -40,16 +40,16 @@ export const AboutApp: React.FC<IButtonAboutAppProps> = ({
           analyze, assess and modernize large scale application portfolios and
           migrate them to Red Hat Middleware, cloud and containers.
         </p>
-      </TextContent>
-      <TextContent className="pf-v5-u-py-xl">
+      </Content>
+      <Content className="pf-v6-u-py-xl">
         <Grid hasGutter>
           <GridItem lg={7}>
             <span className="dt">Version</span>
           </GridItem>
           <GridItem lg={5}>{VERSION}</GridItem>
         </Grid>
-      </TextContent>
-      <TextContent className="pf-v5-u-py-xl">
+      </Content>
+      <Content className="pf-v6-u-py-xl">
         <h4>Links</h4>
         <List>
           <ListItem>
@@ -71,7 +71,7 @@ export const AboutApp: React.FC<IButtonAboutAppProps> = ({
             </a>
           </ListItem>
         </List>
-      </TextContent>
+      </Content>
     </AboutModal>
   );
 };

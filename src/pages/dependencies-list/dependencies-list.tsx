@@ -2,11 +2,9 @@ import React from "react";
 import { useMatch, useNavigate } from "react-router-dom";
 
 import {
+  Content,
   Divider,
   PageSection,
-  PageSectionVariants,
-  Text,
-  TextContent,
   Toolbar,
   ToolbarContent,
   ToolbarItem,
@@ -37,7 +35,7 @@ export const DependenciesList: React.FC = () => {
 
   return (
     <>
-      <PageSection padding={{ default: "noPadding" }}>
+      <PageSection>
         <Toolbar>
           <ToolbarContent>
             <ToolbarItem>Application:</ToolbarItem>
@@ -51,16 +49,14 @@ export const DependenciesList: React.FC = () => {
         </Toolbar>
       </PageSection>
       <Divider />
-      <PageSection variant={PageSectionVariants.light}>
-        <TextContent>
-          <Text component="h1">Dependencies</Text>
-          <Text component="small">
-            This report lists all found Java libraries embedded within the
-            analyzed application.
-          </Text>
-        </TextContent>
+      <PageSection>
+        <Content component="h1">Dependencies</Content>
+        <Content component="p">
+          This report lists all found Java libraries embedded within the
+          analyzed application.
+        </Content>
       </PageSection>
-      <PageSection variant={PageSectionVariants.default}>
+      <PageSection>
         <DependenciesTable applicationId={applicationId} />
       </PageSection>
     </>

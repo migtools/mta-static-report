@@ -6,23 +6,23 @@ import {
   Button,
   EmptyState,
   EmptyStateBody,
-  EmptyStateIcon,
   Label,
   Modal,
+  ModalBody,
+  ModalFooter,
+  ModalHeader,
   SearchInput,
   Split,
   SplitItem,
   Tab,
   Tabs,
-  Title,
   Toolbar,
-  ToolbarChip,
-  ToolbarChipGroup,
   ToolbarContent,
   ToolbarFilter,
-  ToolbarGroup,
   ToolbarItem,
   ToolbarItemVariant,
+  ToolbarLabel,
+  ToolbarLabelGroup,
   ToolbarToggleGroup,
 } from "@patternfly/react-core";
 import ArrowUpIcon from "@patternfly/react-icons/dist/esm/icons/arrow-up-icon";
@@ -34,13 +34,10 @@ import { compareByCategoryFn } from "@app/models/api-enriched";
 import { ALL_APPLICATIONS_ID } from "@app/Constants";
 import { IssueProcessed } from "@app/models/api-enriched";
 import { useAllApplications, useCodeSnip } from "@app/queries/report";
-import {
-  SimpleSelect,
-  OptionWithValue,
-  FileEditor,
-  ConditionalTableBody,
-  SimplePagination,
-} from "@app/shared/components";
+import { SimpleSelect, OptionWithValue } from "@app/shared/components/simple-select";
+import { FileEditor } from "@app/shared/components/file-editor";
+import { ConditionalTableBody } from "@app/shared/components/table-controls/conditional-table-body";
+import { SimplePagination } from "@app/shared/components/table-controls/simple-pagination";
 import {
   useModal,
   useTable,
@@ -57,7 +54,7 @@ const areRowsEquals = (a: TableData, b: TableData) => {
   return a.id === b.id;
 };
 
-const toOption = (option: string | ToolbarChip): OptionWithValue => {
+const toOption = (option: string | ToolbarLabel): OptionWithValue => {
   if (typeof option === "string") {
     const toStringFn = () => option;
     return {
@@ -83,7 +80,7 @@ const toOption = (option: string | ToolbarChip): OptionWithValue => {
   }
 };
 
-const toToolbarChip = (option: OptionWithValue): ToolbarChip => {
+const toToolbarLabel = (option: OptionWithValue): ToolbarLabel => {
   return {
     key: option.value,
     node: option.toString(),
@@ -152,14 +149,14 @@ export const ViolationsTable: React.FC<IViolationsTableProps> = ({
   const [filterText, setFilterText] = useState("");
   const { filters, setFilter, removeFilter, clearAllFilters } = useToolbar<
     "category" | "effort" | "sourceTechnology" | "targetTechnology",
-    ToolbarChip
+    ToolbarLabel
   >();
 
   const debouncedFilterText = useDebounce<string>(filterText, 250);
   const debouncedFilters = useDebounce<
     Map<
       "category" | "effort" | "sourceTechnology" | "targetTechnology",
-      ToolbarChip[]
+      ToolbarLabel[]
     >
   >(filters, 100);
 
@@ -298,11 +295,7 @@ export const ViolationsTable: React.FC<IViolationsTableProps> = ({
       <>
         {applicationId === undefined ? (
           <Bullseye>
-            <EmptyState>
-              <EmptyStateIcon icon={ArrowUpIcon} />
-              <Title headingLevel="h4" size="lg">
-                Select an application
-              </Title>
+            <EmptyState icon={ArrowUpIcon} titleText="Select an application" headingLevel="h4">
               <EmptyStateBody>
                 Select an application whose data you want to get access to.
               </EmptyStateBody>
@@ -317,7 +310,7 @@ export const ViolationsTable: React.FC<IViolationsTableProps> = ({
             >
               <ToolbarContent>
                 <ToolbarToggleGroup toggleIcon={<FilterIcon />} breakpoint="xl">
-                  <ToolbarItem variant="search-filter">
+                  <ToolbarItem>
                     <SearchInput
                       value={filterText}
                       onChange={(_, value) => setFilterText(value)}
@@ -326,205 +319,199 @@ export const ViolationsTable: React.FC<IViolationsTableProps> = ({
                   </ToolbarItem>
                   {
                     insightsMode ? (<></>) : (
-                      <ToolbarGroup variant="filter-group">
-                        <ToolbarFilter
-                          chips={filters.get("category")}
-                          deleteChip={(
-                            category: string | ToolbarChipGroup,
-                            chip: ToolbarChip | string
-                          ) => removeFilter("category", chip)}
-                          deleteChipGroup={() => setFilter("category", [])}
-                          categoryName={{ key: "category", name: "Category" }}
-                        >
-                          <SimpleSelect
-                            maxHeight={300}
-                            variant="checkbox"
-                            aria-label="category"
-                            aria-labelledby="category"
-                            placeholderText="Category"
-                            value={filters.get("category")?.map(toOption)}
-                            options={categories.map(toOption)}
-                            onChange={(option) => {
-                              const optionValue = option as OptionWithValue<string>;
+                      <ToolbarFilter
+                        labels={filters.get("category")}
+                        deleteLabel={(
+                          category: string | ToolbarLabelGroup,
+                          label: ToolbarLabel | string
+                        ) => removeFilter("category", label)}
+                        deleteLabelGroup={() => setFilter("category", [])}
+                        categoryName={{ key: "category", name: "Category" }}
+                      >
+                        <SimpleSelect
+                          maxHeight={300}
+                          variant="checkbox"
+                          aria-label="category"
+                          aria-labelledby="category"
+                          placeholderText="Category"
+                          value={filters.get("category")?.map(toOption)}
+                          options={categories.map(toOption)}
+                          onChange={(option) => {
+                            const optionValue = option as OptionWithValue<string>;
 
-                              const elementExists = (
+                            const elementExists = (
+                              filters.get("category") || []
+                            ).some((f) => f.key === optionValue.value);
+                            let newElements: ToolbarLabel[];
+                            if (elementExists) {
+                              newElements = (
                                 filters.get("category") || []
-                              ).some((f) => f.key === optionValue.value);
-                              let newElements: ToolbarChip[];
-                              if (elementExists) {
-                                newElements = (
-                                  filters.get("category") || []
-                                ).filter((f) => f.key !== optionValue.value);
-                              } else {
-                                newElements = [
-                                  ...(filters.get("category") || []),
-                                  toToolbarChip(optionValue),
-                                ];
-                              }
+                              ).filter((f) => f.key !== optionValue.value);
+                            } else {
+                              newElements = [
+                                ...(filters.get("category") || []),
+                                toToolbarLabel(optionValue),
+                              ];
+                            }
 
-                              setFilter("category", newElements);
-                            }}
-                            hasInlineFilter
-                            onClear={() => setFilter("category", [])}
-                          />
-                        </ToolbarFilter>
-                      </ToolbarGroup>
+                            setFilter("category", newElements);
+                          }}
+                          hasInlineFilter
+                          onClear={() => setFilter("category", [])}
+                        />
+                      </ToolbarFilter>
                     )
                   }
                   {
                     insightsMode ? (<></>) : (
-                      <ToolbarGroup variant="filter-group">
-                        <ToolbarFilter
-                          chips={filters.get("effort")}
-                          deleteChip={(
-                            category: string | ToolbarChipGroup,
-                            chip: ToolbarChip | string
-                          ) => removeFilter("effort", chip)}
-                          deleteChipGroup={() => setFilter("effort", [])}
-                          categoryName={{
-                            key: "effort",
-                            name: "Effort",
+                      <ToolbarFilter
+                        labels={filters.get("effort")}
+                        deleteLabel={(
+                          category: string | ToolbarLabelGroup,
+                          label: ToolbarLabel | string
+                        ) => removeFilter("effort", label)}
+                        deleteLabelGroup={() => setFilter("effort", [])}
+                        categoryName={{
+                          key: "effort",
+                          name: "Effort",
+                        }}
+                      >
+                        <SimpleSelect
+                          maxHeight={300}
+                          variant="checkbox"
+                          aria-label="effort"
+                          aria-labelledby="effort"
+                          placeholderText="Effort"
+                          value={filters.get("effort")?.map(toOption)}
+                          options={efforts.map(toOption)}
+                          onChange={(option) => {
+                            const optionValue = option as OptionWithValue<string>;
+
+                            const elementExists = (
+                              filters.get("effort") || []
+                            ).some((f) => f.key === optionValue.value);
+                            let newElements: ToolbarLabel[];
+                            if (elementExists) {
+                              newElements = (filters.get("effort") || []).filter(
+                                (f) => f.key !== optionValue.value
+                              );
+                            } else {
+                              newElements = [
+                                ...(filters.get("effort") || []),
+                                toToolbarLabel(optionValue),
+                              ];
+                            }
+
+                            setFilter("effort", newElements);
                           }}
-                        >
-                          <SimpleSelect
-                            maxHeight={300}
-                            variant="checkbox"
-                            aria-label="effort"
-                            aria-labelledby="effort"
-                            placeholderText="Effort"
-                            value={filters.get("effort")?.map(toOption)}
-                            options={efforts.map(toOption)}
-                            onChange={(option) => {
-                              const optionValue = option as OptionWithValue<string>;
-
-                              const elementExists = (
-                                filters.get("effort") || []
-                              ).some((f) => f.key === optionValue.value);
-                              let newElements: ToolbarChip[];
-                              if (elementExists) {
-                                newElements = (filters.get("effort") || []).filter(
-                                  (f) => f.key !== optionValue.value
-                                );
-                              } else {
-                                newElements = [
-                                  ...(filters.get("effort") || []),
-                                  toToolbarChip(optionValue),
-                                ];
-                              }
-
-                              setFilter("effort", newElements);
-                            }}
-                            hasInlineFilter
-                            onClear={() => setFilter("effort", [])}
-                          />
-                        </ToolbarFilter>
-                      </ToolbarGroup>
+                          hasInlineFilter
+                          onClear={() => setFilter("effort", [])}
+                        />
+                      </ToolbarFilter>
                     )
                   }
-                  <ToolbarGroup variant="filter-group">
-                    {technologies.source.length > 0 && (
-                      <ToolbarFilter
-                        chips={filters.get("sourceTechnology")}
-                        deleteChip={(
-                          category: string | ToolbarChipGroup,
-                          chip: ToolbarChip | string
-                        ) => removeFilter("sourceTechnology", chip)}
-                        deleteChipGroup={() =>
-                          setFilter("sourceTechnology", [])
-                        }
-                        categoryName={{
-                          key: "sourceTechnology",
-                          name: "Source",
-                        }}
-                      >
-                        <SimpleSelect
-                          maxHeight={300}
-                          variant="checkbox"
-                          aria-label="sourceTechnology"
-                          aria-labelledby="sourceTechnology"
-                          placeholderText="Source"
-                          value={filters.get("sourceTechnology")?.map(toOption)}
-                          options={technologies.source.map(toOption)}
-                          onChange={(option) => {
-                            const optionValue =
-                              option as OptionWithValue<string>;
+                  {technologies.source.length > 0 && (
+                    <ToolbarFilter
+                      labels={filters.get("sourceTechnology")}
+                      deleteLabel={(
+                        category: string | ToolbarLabelGroup,
+                        label: ToolbarLabel | string
+                      ) => removeFilter("sourceTechnology", label)}
+                      deleteLabelGroup={() =>
+                        setFilter("sourceTechnology", [])
+                      }
+                      categoryName={{
+                        key: "sourceTechnology",
+                        name: "Source",
+                      }}
+                    >
+                      <SimpleSelect
+                        maxHeight={300}
+                        variant="checkbox"
+                        aria-label="sourceTechnology"
+                        aria-labelledby="sourceTechnology"
+                        placeholderText="Source"
+                        value={filters.get("sourceTechnology")?.map(toOption)}
+                        options={technologies.source.map(toOption)}
+                        onChange={(option) => {
+                          const optionValue =
+                            option as OptionWithValue<string>;
 
-                            const elementExists = (
+                          const elementExists = (
+                            filters.get("sourceTechnology") || []
+                          ).some((f) => f.key === optionValue.value);
+                          let newElements: ToolbarLabel[];
+                          if (elementExists) {
+                            newElements = (
                               filters.get("sourceTechnology") || []
-                            ).some((f) => f.key === optionValue.value);
-                            let newElements: ToolbarChip[];
-                            if (elementExists) {
-                              newElements = (
-                                filters.get("sourceTechnology") || []
-                              ).filter((f) => f.key !== optionValue.value);
-                            } else {
-                              newElements = [
-                                ...(filters.get("sourceTechnology") || []),
-                                toToolbarChip(optionValue),
-                              ];
-                            }
+                            ).filter((f) => f.key !== optionValue.value);
+                          } else {
+                            newElements = [
+                              ...(filters.get("sourceTechnology") || []),
+                              toToolbarLabel(optionValue),
+                            ];
+                          }
 
-                            setFilter("sourceTechnology", newElements);
-                          }}
-                          hasInlineFilter
-                          onClear={() => setFilter("sourceTechnology", [])}
-                        />
-                      </ToolbarFilter>
-                    )}
-                    {technologies.target.length > 0 && (
-                      <ToolbarFilter
-                        chips={filters.get("targetTechnology")}
-                        deleteChip={(
-                          category: string | ToolbarChipGroup,
-                          chip: ToolbarChip | string
-                        ) => removeFilter("targetTechnology", chip)}
-                        deleteChipGroup={() =>
-                          setFilter("targetTechnology", [])
-                        }
-                        categoryName={{
-                          key: "targetTechnology",
-                          name: "Target",
+                          setFilter("sourceTechnology", newElements);
                         }}
-                      >
-                        <SimpleSelect
-                          maxHeight={300}
-                          variant="checkbox"
-                          aria-label="targetTechnology"
-                          aria-labelledby="targetTechnology"
-                          placeholderText="Target"
-                          value={filters.get("targetTechnology")?.map(toOption)}
-                          options={technologies.target.map(toOption)}
-                          onChange={(option) => {
-                            const optionValue =
-                              option as OptionWithValue<string>;
+                        hasInlineFilter
+                        onClear={() => setFilter("sourceTechnology", [])}
+                      />
+                    </ToolbarFilter>
+                  )}
+                  {technologies.target.length > 0 && (
+                    <ToolbarFilter
+                      labels={filters.get("targetTechnology")}
+                      deleteLabel={(
+                        category: string | ToolbarLabelGroup,
+                        label: ToolbarLabel | string
+                      ) => removeFilter("targetTechnology", label)}
+                      deleteLabelGroup={() =>
+                        setFilter("targetTechnology", [])
+                      }
+                      categoryName={{
+                        key: "targetTechnology",
+                        name: "Target",
+                      }}
+                    >
+                      <SimpleSelect
+                        maxHeight={300}
+                        variant="checkbox"
+                        aria-label="targetTechnology"
+                        aria-labelledby="targetTechnology"
+                        placeholderText="Target"
+                        value={filters.get("targetTechnology")?.map(toOption)}
+                        options={technologies.target.map(toOption)}
+                        onChange={(option) => {
+                          const optionValue =
+                            option as OptionWithValue<string>;
 
-                            const elementExists = (
+                          const elementExists = (
+                            filters.get("targetTechnology") || []
+                          ).some((f) => f.key === optionValue.value);
+                          let newElements: ToolbarLabel[];
+                          if (elementExists) {
+                            newElements = (
                               filters.get("targetTechnology") || []
-                            ).some((f) => f.key === optionValue.value);
-                            let newElements: ToolbarChip[];
-                            if (elementExists) {
-                              newElements = (
-                                filters.get("targetTechnology") || []
-                              ).filter((f) => f.key !== optionValue.value);
-                            } else {
-                              newElements = [
-                                ...(filters.get("targetTechnology") || []),
-                                toToolbarChip(optionValue),
-                              ];
-                            }
+                            ).filter((f) => f.key !== optionValue.value);
+                          } else {
+                            newElements = [
+                              ...(filters.get("targetTechnology") || []),
+                              toToolbarLabel(optionValue),
+                            ];
+                          }
 
-                            setFilter("targetTechnology", newElements);
-                          }}
-                          hasInlineFilter
-                          onClear={() => setFilter("targetTechnology", [])}
-                        />
-                      </ToolbarFilter>
-                    )}
-                  </ToolbarGroup>
+                          setFilter("targetTechnology", newElements);
+                        }}
+                        hasInlineFilter
+                        onClear={() => setFilter("targetTechnology", [])}
+                      />
+                    </ToolbarFilter>
+                  )}
                 </ToolbarToggleGroup>
                 <ToolbarItem
                   variant={ToolbarItemVariant.pagination}
-                  align={{ default: "alignRight" }}
+                  align={{ default: "alignEnd" }}
                 >
                   <SimplePagination
                     count={filteredItems.length}
@@ -652,7 +639,7 @@ export const ViolationsTable: React.FC<IViolationsTableProps> = ({
                       {isRowExpanded(item) ? (
                         <Tr isExpanded>
                           <Td colSpan={9}>
-                            <div className="pf-v5-u-m-sm">
+                            <div className="pf-v6-u-m-sm">
                               <IssueOverview
                                 issue={item}
                                 onShowFile={(file, issue) => {
@@ -684,52 +671,54 @@ export const ViolationsTable: React.FC<IViolationsTableProps> = ({
       </>
 
       <Modal
-        title={`File ${fileModalData?.file?.name || ""}`}
         isOpen={isFileModalOpen && fileModalAction === "showFile"}
         onClose={closeFileModal}
         variant="default"
         position="top"
         disableFocusTrap
-        actions={[
+      >
+        <ModalHeader title={`File ${fileModalData?.file?.name || ""}`} />
+        <ModalBody>
+          {Object.keys(fileModalData?.file?.incidents || {}).length > 1 ? (
+            <Tabs
+              activeKey={fileEditorTabId}
+              onSelect={(_event, tabKey) =>
+                setFileEditorTabId(tabKey as number)}>
+              {
+                Object.values(fileModalData?.file?.incidents || {}).flatMap((incidents, idx) => (
+                  <Tab
+                    key={idx}
+                    eventKey={idx}
+                    title={`Line #${fileModalData?.file.ranges[idx * 2]} - #${fileModalData?.file.ranges[idx * 2 + 1]}`} // TODO i18n
+                  >
+                    {fileEditorTabId === idx ? (
+                      <FileEditor
+                        name={fileModalData?.file.name || ""}
+                        displayName={fileModalData?.file.displayName || ""}
+                        codeSnip={codeSnip}
+                        isLoading={codeSnipQuery.isLoading || codeSnipQuery.isFetching}
+                        issue={fileModalData?.issue || {} as IssueProcessed}
+                        incidents={incidents}
+                      />
+                    ) : null}
+                  </Tab>))
+              }
+            </Tabs>
+          ) : (
+            <FileEditor
+              name={fileModalData?.file.name || ""}
+              displayName={fileModalData?.file.displayName || ""}
+              codeSnip={codeSnip}
+              isLoading={codeSnipQuery.isLoading || codeSnipQuery.isFetching}
+              issue={fileModalData?.issue || {} as IssueProcessed}
+              incidents={fileModalData?.file?.incidents[0] || []} />
+          )}
+        </ModalBody>
+        <ModalFooter>
           <Button key="close" variant="primary" onClick={closeFileModal}>
             Close
-          </Button>,
-        ]}
-      >
-        {Object.keys(fileModalData?.file?.incidents || {}).length > 1 ? (
-          <Tabs
-            activeKey={fileEditorTabId}
-            onSelect={(_event, tabKey) =>
-              setFileEditorTabId(tabKey as number)}>
-            {
-              Object.values(fileModalData?.file?.incidents || {}).flatMap((incidents, idx) => (
-                <Tab
-                  key={idx}
-                  eventKey={idx}
-                  title={`Line #${fileModalData?.file.ranges[idx * 2]} - #${fileModalData?.file.ranges[idx * 2 + 1]}`} // TODO i18n
-                >
-                  {fileEditorTabId === idx ? (
-                    <FileEditor
-                      name={fileModalData?.file.name || ""}
-                      displayName={fileModalData?.file.displayName || ""}
-                      codeSnip={codeSnip}
-                      isLoading={codeSnipQuery.isLoading || codeSnipQuery.isFetching}
-                      issue={fileModalData?.issue || {} as IssueProcessed}
-                      incidents={incidents}
-                    />
-                  ) : null}
-                </Tab>))
-            }
-          </Tabs>
-        ) : (
-          <FileEditor
-            name={fileModalData?.file.name || ""}
-            displayName={fileModalData?.file.displayName || ""}
-            codeSnip={codeSnip}
-            isLoading={codeSnipQuery.isLoading || codeSnipQuery.isFetching}
-            issue={fileModalData?.issue || {} as IssueProcessed}
-            incidents={fileModalData?.file?.incidents[0] || []} />
-        )}
+          </Button>
+        </ModalFooter>
       </Modal>
     </>
   );

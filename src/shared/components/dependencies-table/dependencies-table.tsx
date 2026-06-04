@@ -4,17 +4,14 @@ import {
   Bullseye,
   EmptyState,
   EmptyStateBody,
-  EmptyStateIcon,
   Label,
   Split,
   SplitItem,
   SearchInput,
-  Title,
   ToolbarItem,
-  ToolbarChip,
-  ToolbarChipGroup,
+  ToolbarLabel,
+  ToolbarLabelGroup,
   ToolbarFilter,
-  ToolbarGroup,
   Toolbar,
   ToolbarContent,
   ToolbarToggleGroup,
@@ -28,12 +25,9 @@ import { useDebounce } from "usehooks-ts";
 import { DependencyDto } from "@app/api/report";
 import { ALL_APPLICATIONS_ID } from "@app/Constants";
 import { useAllApplications } from "@app/queries/report";
-import {
-  SimpleSelect,
-  OptionWithValue,
-  SimplePagination,
-  ConditionalTableBody,
-} from "@app/shared/components";
+import { SimpleSelect, OptionWithValue } from "@app/shared/components/simple-select";
+import { SimplePagination } from "@app/shared/components/table-controls/simple-pagination";
+import { ConditionalTableBody } from "@app/shared/components/table-controls/conditional-table-body";
 import { useTable, useTableControls, useToolbar } from "@app/shared/hooks";
 
 const compareToByColumn = (
@@ -53,7 +47,7 @@ const compareToByColumn = (
   }
 };
 
-const toOption = (option: string | ToolbarChip): OptionWithValue => {
+const toOption = (option: string | ToolbarLabel): OptionWithValue => {
   if (typeof option === "string") {
     const toStringFn = () => option;
     return {
@@ -79,7 +73,7 @@ const toOption = (option: string | ToolbarChip): OptionWithValue => {
   }
 };
 
-const toToolbarChip = (option: OptionWithValue): ToolbarChip => {
+const toToolbarLabel = (option: OptionWithValue): ToolbarLabel => {
   return {
     key: option.value,
     node: option.toString(),
@@ -99,12 +93,12 @@ export const DependenciesTable: React.FC<IDependenciesTableProps> = ({
   const [filterText, setFilterText] = useState("");
   const { filters, setFilter, removeFilter, clearAllFilters } = useToolbar<
     "labels" | "relationship",
-    ToolbarChip
+    ToolbarLabel
   >();
 
   const debouncedFilterText = useDebounce<string>(filterText, 250);
   const debouncedFilters = useDebounce<
-    Map<"labels" | "relationship", ToolbarChip[]>
+    Map<"labels" | "relationship", ToolbarLabel[]>
   >(filters, 100);
 
   const dependencies = useMemo(() => {
@@ -183,11 +177,7 @@ export const DependenciesTable: React.FC<IDependenciesTableProps> = ({
     <>
       {applicationId === undefined ? (
         <Bullseye>
-          <EmptyState>
-            <EmptyStateIcon icon={ArrowUpIcon} />
-            <Title headingLevel="h4" size="lg">
-              Select an application
-            </Title>
+          <EmptyState headingLevel="h4" icon={ArrowUpIcon} titleText="Select an application">
             <EmptyStateBody>
               Select an application whose data you want to get access to.
             </EmptyStateBody>
@@ -202,103 +192,99 @@ export const DependenciesTable: React.FC<IDependenciesTableProps> = ({
           >
             <ToolbarContent>
               <ToolbarToggleGroup toggleIcon={<FilterIcon />} breakpoint="xl">
-                <ToolbarItem variant="search-filter">
+                <ToolbarItem>
                   <SearchInput
                     value={filterText}
                     onChange={(_, value) => setFilterText(value)}
                     onClear={() => setFilterText("")}
                   />
                 </ToolbarItem>
-                <ToolbarGroup variant="filter-group">
-                  <ToolbarFilter
-                    chips={filters.get("labels")}
-                    deleteChip={(
-                      category: string | ToolbarChipGroup,
-                      chip: ToolbarChip | string
-                    ) => removeFilter("labels", chip)}
-                    deleteChipGroup={() => setFilter("labels", [])}
-                    categoryName={{ key: "labels", name: "Labels" }}
-                  >
-                    <SimpleSelect
-                      maxHeight={300}
-                      variant="checkbox"
-                      aria-label="labels"
-                      aria-labelledby="labels"
-                      placeholderText="Labels"
-                      value={filters.get("labels")?.map(toOption)}
-                      options={allLabels.map(toOption)}
-                      onChange={(option) => {
-                        const optionValue = option as OptionWithValue<string>;
+                <ToolbarFilter
+                  labels={filters.get("labels")}
+                  deleteLabel={(
+                    category: string | ToolbarLabelGroup,
+                    chip: ToolbarLabel | string
+                  ) => removeFilter("labels", chip)}
+                  deleteLabelGroup={() => setFilter("labels", [])}
+                  categoryName={{ key: "labels", name: "Labels" }}
+                >
+                  <SimpleSelect
+                    maxHeight={300}
+                    variant="checkbox"
+                    aria-label="labels"
+                    aria-labelledby="labels"
+                    placeholderText="Labels"
+                    value={filters.get("labels")?.map(toOption)}
+                    options={allLabels.map(toOption)}
+                    onChange={(option) => {
+                      const optionValue = option as OptionWithValue<string>;
 
-                        const elementExists = (
-                          filters.get("labels") || []
-                        ).some((f) => f.key === optionValue.value);
-                        let newElements: ToolbarChip[];
-                        if (elementExists) {
-                          newElements = (filters.get("labels") || []).filter(
-                            (f) => f.key !== optionValue.value
-                          );
-                        } else {
-                          newElements = [
-                            ...(filters.get("labels") || []),
-                            toToolbarChip(optionValue),
-                          ];
-                        }
+                      const elementExists = (
+                        filters.get("labels") || []
+                      ).some((f) => f.key === optionValue.value);
+                      let newElements: ToolbarLabel[];
+                      if (elementExists) {
+                        newElements = (filters.get("labels") || []).filter(
+                          (f) => f.key !== optionValue.value
+                        );
+                      } else {
+                        newElements = [
+                          ...(filters.get("labels") || []),
+                          toToolbarLabel(optionValue),
+                        ];
+                      }
 
-                        setFilter("labels", newElements);
-                      }}
-                      hasInlineFilter
-                      onClear={() => setFilter("labels", [])}
-                    />
-                  </ToolbarFilter>
-                </ToolbarGroup>
-                <ToolbarGroup variant="filter-group">
-                  <ToolbarFilter
-                    chips={filters.get("relationship")}
-                    deleteChip={(
-                      category: string | ToolbarChipGroup,
-                      chip: ToolbarChip | string
-                    ) => removeFilter("relationship", chip)}
-                    deleteChipGroup={() => setFilter("relationship", [])}
-                    categoryName={{ key: "relationship", name: "Relation" }}
-                  >
-                    <SimpleSelect
-                      maxHeight={300}
-                      variant="checkbox"
-                      aria-label="relationship"
-                      aria-labelledby="relationship"
-                      placeholderText="Relation"
-                      value={filters.get("relationship")?.map(toOption)}
-                      options={["Direct", "Indirect"].map(toOption)}
-                      onChange={(option) => {
-                        const optionValue = option as OptionWithValue<string>;
+                      setFilter("labels", newElements);
+                    }}
+                    hasInlineFilter
+                    onClear={() => setFilter("labels", [])}
+                  />
+                </ToolbarFilter>
+                <ToolbarFilter
+                  labels={filters.get("relationship")}
+                  deleteLabel={(
+                    category: string | ToolbarLabelGroup,
+                    chip: ToolbarLabel | string
+                  ) => removeFilter("relationship", chip)}
+                  deleteLabelGroup={() => setFilter("relationship", [])}
+                  categoryName={{ key: "relationship", name: "Relation" }}
+                >
+                  <SimpleSelect
+                    maxHeight={300}
+                    variant="checkbox"
+                    aria-label="relationship"
+                    aria-labelledby="relationship"
+                    placeholderText="Relation"
+                    value={filters.get("relationship")?.map(toOption)}
+                    options={["Direct", "Indirect"].map(toOption)}
+                    onChange={(option) => {
+                      const optionValue = option as OptionWithValue<string>;
 
-                        const elementExists = (
+                      const elementExists = (
+                        filters.get("relationship") || []
+                      ).some((f) => f.key === optionValue.value);
+                      let newElements: ToolbarLabel[];
+                      if (elementExists) {
+                        newElements = (
                           filters.get("relationship") || []
-                        ).some((f) => f.key === optionValue.value);
-                        let newElements: ToolbarChip[];
-                        if (elementExists) {
-                          newElements = (
-                            filters.get("relationship") || []
-                          ).filter((f) => f.key !== optionValue.value);
-                        } else {
-                          newElements = [
-                            ...(filters.get("relationship") || []),
-                            toToolbarChip(optionValue),
-                          ];
-                        }
+                        ).filter((f) => f.key !== optionValue.value);
+                      } else {
+                        newElements = [
+                          ...(filters.get("relationship") || []),
+                          toToolbarLabel(optionValue),
+                        ];
+                      }
 
-                        setFilter("relationship", newElements);
-                      }}
-                      hasInlineFilter
-                      onClear={() => setFilter("relationship", [])}
-                    />
-                  </ToolbarFilter>
-                </ToolbarGroup>
+                      setFilter("relationship", newElements);
+                    }}
+                    hasInlineFilter
+                    onClear={() => setFilter("relationship", [])}
+                  />
+                </ToolbarFilter>
               </ToolbarToggleGroup>
               <ToolbarItem
                 variant={ToolbarItemVariant.pagination}
-                align={{ default: "alignRight" }}
+                align={{ default: "alignEnd" }}
               >
                 <SimplePagination
                   count={filteredItems.length}

@@ -2,15 +2,19 @@ import React, {
   createContext,
   useContext,
   useEffect,
-  useReducer,
   useState,
 } from "react";
 
 import {
-  ContextSelector,
-  ContextSelectorItem,
-  ContextSelectorProps,
-} from "@patternfly/react-core/deprecated";
+  Select,
+  SelectOption,
+  SelectList,
+  SelectProps,
+  MenuToggle,
+  MenuToggleElement,
+  TextInputGroup,
+  TextInputGroupMain,
+} from "@patternfly/react-core";
 
 import "./simple-context.css";
 
@@ -60,14 +64,7 @@ export const useSimpleContext = (): ISimpleContext => useContext(SimpleContext);
 
 export interface ISimpleContextSelectorProps {
   contextKeyFromURL?: string;
-  props?: Omit<
-    ContextSelectorProps,
-    | "isOpen"
-    | "toggleText"
-    | "onToggle"
-    | "searchInputValue"
-    | "onSearchInputChange"
-  >;
+  props?: Omit<SelectProps, "isOpen" | "onOpenChange" | "toggle">;
   onChange: (context: Context) => void;
 }
 
@@ -87,38 +84,54 @@ export const SimpleContextSelector: React.FC<ISimpleContextSelectorProps> = ({
   }, [contextKeyFromURL, currentContext, selectContext]);
 
   const [filterText, setFilterText] = useState("");
-  const [isSelectorOpen, toggleSelector] = useReducer(
-    (isVisible) => !isVisible,
-    false
-  );
+  const [isSelectorOpen, setIsSelectorOpen] = useState(false);
 
   const onSelect = (value: Context) => {
-    toggleSelector();
+    setIsSelectorOpen(false);
     selectContext(value.key);
     onChange(value);
   };
 
   return (
-    <ContextSelector
+    <Select
       isOpen={isSelectorOpen}
-      toggleText={currentContext?.label}
-      onToggle={toggleSelector}
-      searchInputValue={filterText}
-      onSearchInputChange={(_, value) => setFilterText(value)}
-      className="firstChildBordered"
+      selected={currentContext?.key}
+      onSelect={(_event, itemId) => {
+        const found = allContexts.find((c) => c.key === String(itemId));
+        if (found) onSelect(found);
+      }}
+      onOpenChange={setIsSelectorOpen}
+      toggle={(toggleRef: React.Ref<MenuToggleElement>) => (
+        <MenuToggle
+          ref={toggleRef}
+          onClick={() => setIsSelectorOpen((prev) => !prev)}
+          isExpanded={isSelectorOpen}
+          isFullWidth
+          className="firstChildBordered"
+        >
+          {currentContext?.label}
+        </MenuToggle>
+      )}
       {...props}
     >
-      {allContexts
-        .filter(
-          (f) => f.label.toLowerCase().indexOf(filterText.toLowerCase()) !== -1
-        )
-        .map((item, index) => {
-          return (
-            <ContextSelectorItem key={index} onClick={() => onSelect(item)}>
+      <TextInputGroup>
+        <TextInputGroupMain
+          value={filterText}
+          onChange={(_, value) => setFilterText(value)}
+        />
+      </TextInputGroup>
+      <SelectList>
+        {allContexts
+          .filter(
+            (f) =>
+              f.label.toLowerCase().indexOf(filterText.toLowerCase()) !== -1
+          )
+          .map((item, index) => (
+            <SelectOption key={index} value={item.key}>
               {item.label}
-            </ContextSelectorItem>
-          );
-        })}
-    </ContextSelector>
+            </SelectOption>
+          ))}
+      </SelectList>
+    </Select>
   );
 };

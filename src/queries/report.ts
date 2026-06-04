@@ -224,7 +224,7 @@ export const useAllApplications = () => {
       refetchOnMount: false,
       refetchOnReconnect: false,
       refetchOnWindowFocus: false,
-      cacheTime: Infinity, 
+      gcTime: Infinity, 
       staleTime: Infinity,
     },
     MOCK_APPS,

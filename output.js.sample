@@ -1,0 +1,384 @@
+window["apps"] = [
+  {
+    "id": "1",
+    "name": "customer-service",
+    "files": {
+      "file:///opt/input/source/src/main/java/com/example/customer/CustomerService.java": "package com.example.customer;\n\nimport javax.ejb.Stateless;\nimport javax.inject.Inject;\nimport javax.persistence.EntityManager;\nimport javax.persistence.PersistenceContext;\nimport javax.ws.rs.*;\nimport javax.ws.rs.core.MediaType;\nimport javax.ws.rs.core.Response;\nimport javax.transaction.Transactional;\n\n@Stateless\n@Path(\"/customers\")\n@Produces(MediaType.APPLICATION_JSON)\n@Consumes(MediaType.APPLICATION_JSON)\npublic class CustomerService {\n\n    @PersistenceContext\n    private EntityManager em;\n\n    @Inject\n    private CustomerValidator validator;\n\n    @GET\n    public Response listAll() {\n        return Response.ok(em.createNamedQuery(\"Customer.findAll\").getResultList()).build();\n    }\n\n    @GET\n    @Path(\"/{id}\")\n    public Response getById(@PathParam(\"id\") Long id) {\n        Customer c = em.find(Customer.class, id);\n        if (c == null) return Response.status(Response.Status.NOT_FOUND).build();\n        return Response.ok(c).build();\n    }\n\n    @POST\n    @Transactional\n    public Response create(Customer customer) {\n        validator.validate(customer);\n        em.persist(customer);\n        return Response.status(Response.Status.CREATED).entity(customer).build();\n    }\n}\n",
+      "file:///opt/input/source/src/main/java/com/example/customer/Customer.java": "package com.example.customer;\n\nimport javax.persistence.*;\nimport javax.validation.constraints.NotNull;\nimport javax.validation.constraints.Size;\nimport javax.json.bind.annotation.JsonbProperty;\n\n@Entity\n@Table(name = \"customers\")\n@NamedQuery(name = \"Customer.findAll\", query = \"SELECT c FROM Customer c\")\npublic class Customer {\n\n    @Id\n    @GeneratedValue(strategy = GenerationType.IDENTITY)\n    private Long id;\n\n    @NotNull\n    @Size(min = 1, max = 100)\n    @Column(name = \"name\")\n    private String name;\n\n    @JsonbProperty(\"email_address\")\n    @Column(name = \"email\")\n    private String email;\n\n    public Long getId() { return id; }\n    public void setId(Long id) { this.id = id; }\n    public String getName() { return name; }\n    public void setName(String name) { this.name = name; }\n    public String getEmail() { return email; }\n    public void setEmail(String email) { this.email = email; }\n}\n",
+      "file:///opt/input/source/src/main/java/com/example/customer/CustomerValidator.java": "package com.example.customer;\n\nimport javax.enterprise.context.ApplicationScoped;\nimport javax.validation.ValidationException;\n\n@ApplicationScoped\npublic class CustomerValidator {\n    public void validate(Customer customer) {\n        if (customer.getName() == null || customer.getName().isEmpty()) {\n            throw new ValidationException(\"Name is required\");\n        }\n    }\n}\n",
+      "file:///opt/input/source/src/main/java/com/example/customer/CustomerEventListener.java": "package com.example.customer;\n\nimport javax.ejb.ActivationConfigProperty;\nimport javax.ejb.MessageDriven;\nimport javax.jms.Message;\nimport javax.jms.MessageListener;\nimport javax.jms.TextMessage;\nimport javax.inject.Inject;\nimport java.util.logging.Logger;\n\n@MessageDriven(activationConfig = {\n    @ActivationConfigProperty(propertyName = \"destinationType\", propertyValue = \"javax.jms.Queue\"),\n    @ActivationConfigProperty(propertyName = \"destination\", propertyValue = \"java:/jms/queue/CustomerEvents\")\n})\npublic class CustomerEventListener implements MessageListener {\n\n    private static final Logger LOG = Logger.getLogger(CustomerEventListener.class.getName());\n\n    @Inject\n    private CustomerService service;\n\n    @Override\n    public void onMessage(Message message) {\n        try {\n            TextMessage txt = (TextMessage) message;\n            LOG.info(\"Received customer event: \" + txt.getText());\n        } catch (Exception e) {\n            LOG.severe(\"Failed to process message: \" + e.getMessage());\n        }\n    }\n}\n",
+      "file:///opt/input/source/src/main/java/com/example/customer/AppConfig.java": "package com.example.customer;\n\nimport javax.ws.rs.ApplicationPath;\nimport javax.ws.rs.core.Application;\n\n@ApplicationPath(\"/api\")\npublic class AppConfig extends Application {\n}\n",
+      "file:///opt/input/source/src/main/java/com/example/customer/CustomerNotifier.java": "package com.example.customer;\n\nimport javax.annotation.Resource;\nimport javax.enterprise.context.ApplicationScoped;\nimport javax.inject.Inject;\nimport javax.jms.ConnectionFactory;\nimport javax.jms.JMSContext;\nimport javax.jms.Queue;\n\n@ApplicationScoped\npublic class CustomerNotifier {\n\n    @Inject\n    private JMSContext jmsContext;\n\n    @Resource(lookup = \"java:/jms/queue/CustomerNotifications\")\n    private Queue notificationQueue;\n\n    public void notifyCustomerCreated(Customer customer) {\n        jmsContext.createProducer().send(notificationQueue, \"Customer created: \" + customer.getName());\n    }\n}\n",
+      "file:///opt/input/source/src/main/java/com/example/customer/HealthCheck.java": "package com.example.customer;\n\nimport javax.enterprise.context.ApplicationScoped;\nimport javax.inject.Inject;\nimport javax.persistence.EntityManager;\nimport javax.persistence.PersistenceContext;\n\n@ApplicationScoped\npublic class HealthCheck {\n\n    @PersistenceContext\n    private EntityManager em;\n\n    public boolean isHealthy() {\n        try {\n            em.createNativeQuery(\"SELECT 1\").getSingleResult();\n            return true;\n        } catch (Exception e) {\n            return false;\n        }\n    }\n}\n",
+      "file:///opt/input/source/src/main/java/com/example/customer/CustomerMapper.java": "package com.example.customer;\n\nimport javax.enterprise.context.ApplicationScoped;\nimport javax.json.bind.Jsonb;\nimport javax.json.bind.JsonbBuilder;\n\n@ApplicationScoped\npublic class CustomerMapper {\n\n    private final Jsonb jsonb = JsonbBuilder.create();\n\n    public String toJson(Customer customer) {\n        return jsonb.toJson(customer);\n    }\n\n    public Customer fromJson(String json) {\n        return jsonb.fromJson(json, Customer.class);\n    }\n}\n",
+      "file:///opt/input/source/src/main/java/com/example/customer/AuditInterceptor.java": "package com.example.customer;\n\nimport javax.inject.Inject;\nimport javax.interceptor.AroundInvoke;\nimport javax.interceptor.Interceptor;\nimport javax.interceptor.InvocationContext;\nimport java.util.logging.Logger;\n\n@Interceptor\npublic class AuditInterceptor {\n\n    private static final Logger LOG = Logger.getLogger(AuditInterceptor.class.getName());\n\n    @AroundInvoke\n    public Object audit(InvocationContext ctx) throws Exception {\n        LOG.info(\"Invoking: \" + ctx.getMethod().getName());\n        return ctx.proceed();\n    }\n}\n",
+      "file:///opt/input/source/src/main/java/com/example/customer/SecurityFilter.java": "package com.example.customer;\n\nimport javax.servlet.*;\nimport javax.servlet.annotation.WebFilter;\nimport javax.servlet.http.HttpServletRequest;\nimport java.io.IOException;\nimport java.util.logging.Logger;\n\n@WebFilter(\"/*\")\npublic class SecurityFilter implements Filter {\n\n    private static final Logger LOG = Logger.getLogger(SecurityFilter.class.getName());\n\n    @Override\n    public void init(FilterConfig config) throws ServletException {}\n\n    @Override\n    public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)\n            throws IOException, ServletException {\n        HttpServletRequest req = (HttpServletRequest) request;\n        LOG.info(\"Request: \" + req.getMethod() + \" \" + req.getRequestURI());\n        chain.doFilter(request, response);\n    }\n\n    @Override\n    public void destroy() {}\n}\n",
+      "file:///opt/input/source/src/main/java/com/example/customer/BatchProcessor.java": "package com.example.customer;\n\nimport javax.batch.api.AbstractBatchlet;\nimport javax.batch.runtime.context.JobContext;\nimport javax.inject.Inject;\nimport javax.inject.Named;\nimport java.util.logging.Logger;\n\n@Named\npublic class BatchProcessor extends AbstractBatchlet {\n\n    private static final Logger LOG = Logger.getLogger(BatchProcessor.class.getName());\n\n    @Inject\n    private JobContext jobContext;\n\n    @Override\n    public String process() throws Exception {\n        LOG.info(\"Running batch job: \" + jobContext.getJobName());\n        return \"COMPLETED\";\n    }\n}\n",
+      "file:///opt/input/source/src/main/java/com/example/customer/CacheManager.java": "package com.example.customer;\n\nimport javax.enterprise.context.ApplicationScoped;\nimport java.util.Map;\nimport java.util.concurrent.ConcurrentHashMap;\n\n@ApplicationScoped\npublic class CacheManager {\n\n    private final Map<Long, Customer> cache = new ConcurrentHashMap<>();\n\n    public Customer get(Long id) {\n        return cache.get(id);\n    }\n\n    public void put(Long id, Customer customer) {\n        cache.put(id, customer);\n    }\n\n    public void evict(Long id) {\n        cache.remove(id);\n    }\n}\n",
+      "file:///opt/input/source/src/main/webapp/WEB-INF/web.xml": "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<web-app xmlns=\"http://xmlns.jcp.org/xml/ns/javaee\"\n         xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"\n         xsi:schemaLocation=\"http://xmlns.jcp.org/xml/ns/javaee\n         http://xmlns.jcp.org/xml/ns/javaee/web-app_4_0.xsd\"\n         version=\"4.0\">\n    <display-name>customer-service</display-name>\n</web-app>\n"
+    },
+    "rulesets": [
+      {
+        "name": "eap8/eap7",
+        "description": "Rules for migrating from JBoss EAP 7 to EAP 8 (Jakarta EE 10)",
+        "tags": ["Java EE=EJB,JPA,CDI,JAX-RS,JMS,Servlet", "Runtime=EAP"],
+        "violations": {
+          "javax-to-jakarta-import-00001": {
+            "description": "javax.ejb package references must be migrated to jakarta.ejb\nThe `javax.ejb` package has been replaced by `jakarta.ejb` in Jakarta EE 10.",
+            "category": "mandatory",
+            "labels": ["konveyor.io/source=eap7", "konveyor.io/target=eap8"],
+            "effort": 1,
+            "links": [{"url": "https://jakarta.ee/specifications/enterprise-beans/", "title": "Jakarta Enterprise Beans"}],
+            "incidents": [
+              {"uri": "file:///opt/input/source/src/main/java/com/example/customer/CustomerService.java", "message": "Replace `javax.ejb` import with `jakarta.ejb`", "lineNumber": 3, "codeSnip": " 1  package com.example.customer;\n 2  \n 3  import javax.ejb.Stateless;\n 4  import javax.inject.Inject;", "variables": {}},
+              {"uri": "file:///opt/input/source/src/main/java/com/example/customer/CustomerEventListener.java", "message": "Replace `javax.ejb` import with `jakarta.ejb`", "lineNumber": 3, "codeSnip": " 1  package com.example.customer;\n 2  \n 3  import javax.ejb.ActivationConfigProperty;\n 4  import javax.ejb.MessageDriven;", "variables": {}},
+              {"uri": "file:///opt/input/source/src/main/java/com/example/customer/CustomerEventListener.java", "message": "Replace `javax.ejb` import with `jakarta.ejb`", "lineNumber": 4, "codeSnip": " 3  import javax.ejb.ActivationConfigProperty;\n 4  import javax.ejb.MessageDriven;\n 5  import javax.jms.Message;", "variables": {}}
+            ]
+          },
+          "javax-to-jakarta-import-00002": {
+            "description": "javax.persistence package references must be migrated to jakarta.persistence\nThe `javax.persistence` package has been replaced by `jakarta.persistence` in Jakarta EE 10.",
+            "category": "mandatory",
+            "labels": ["konveyor.io/source=eap7", "konveyor.io/target=eap8"],
+            "effort": 1,
+            "links": [{"url": "https://jakarta.ee/specifications/persistence/", "title": "Jakarta Persistence"}],
+            "incidents": [
+              {"uri": "file:///opt/input/source/src/main/java/com/example/customer/CustomerService.java", "message": "Replace `javax.persistence` import with `jakarta.persistence`", "lineNumber": 5, "codeSnip": " 4  import javax.inject.Inject;\n 5  import javax.persistence.EntityManager;\n 6  import javax.persistence.PersistenceContext;", "variables": {}},
+              {"uri": "file:///opt/input/source/src/main/java/com/example/customer/CustomerService.java", "message": "Replace `javax.persistence` import with `jakarta.persistence`", "lineNumber": 6, "codeSnip": " 5  import javax.persistence.EntityManager;\n 6  import javax.persistence.PersistenceContext;\n 7  import javax.ws.rs.*;", "variables": {}},
+              {"uri": "file:///opt/input/source/src/main/java/com/example/customer/Customer.java", "message": "Replace `javax.persistence` import with `jakarta.persistence`", "lineNumber": 3, "codeSnip": " 1  package com.example.customer;\n 2  \n 3  import javax.persistence.*;\n 4  import javax.validation.constraints.NotNull;", "variables": {}},
+              {"uri": "file:///opt/input/source/src/main/java/com/example/customer/HealthCheck.java", "message": "Replace `javax.persistence` import with `jakarta.persistence`", "lineNumber": 6, "codeSnip": " 5  import javax.inject.Inject;\n 6  import javax.persistence.EntityManager;\n 7  import javax.persistence.PersistenceContext;", "variables": {}},
+              {"uri": "file:///opt/input/source/src/main/java/com/example/customer/HealthCheck.java", "message": "Replace `javax.persistence` import with `jakarta.persistence`", "lineNumber": 7, "codeSnip": " 6  import javax.persistence.EntityManager;\n 7  import javax.persistence.PersistenceContext;\n 8  ", "variables": {}}
+            ]
+          },
+          "javax-to-jakarta-import-00003": {
+            "description": "javax.inject package references must be migrated to jakarta.inject\nThe `javax.inject` package has been replaced by `jakarta.inject` in Jakarta EE 10.",
+            "category": "mandatory",
+            "labels": ["konveyor.io/source=eap7", "konveyor.io/target=eap8"],
+            "effort": 1,
+            "links": [{"url": "https://jakarta.ee/specifications/dependency-injection/", "title": "Jakarta Dependency Injection"}],
+            "incidents": [
+              {"uri": "file:///opt/input/source/src/main/java/com/example/customer/CustomerService.java", "message": "Replace `javax.inject` import with `jakarta.inject`", "lineNumber": 4, "codeSnip": " 3  import javax.ejb.Stateless;\n 4  import javax.inject.Inject;\n 5  import javax.persistence.EntityManager;", "variables": {}},
+              {"uri": "file:///opt/input/source/src/main/java/com/example/customer/CustomerEventListener.java", "message": "Replace `javax.inject` import with `jakarta.inject`", "lineNumber": 8, "codeSnip": " 7  import javax.jms.TextMessage;\n 8  import javax.inject.Inject;\n 9  import java.util.logging.Logger;", "variables": {}},
+              {"uri": "file:///opt/input/source/src/main/java/com/example/customer/CustomerNotifier.java", "message": "Replace `javax.inject` import with `jakarta.inject`", "lineNumber": 4, "codeSnip": " 3  import javax.annotation.Resource;\n 4  import javax.enterprise.context.ApplicationScoped;\n 5  import javax.inject.Inject;", "variables": {}},
+              {"uri": "file:///opt/input/source/src/main/java/com/example/customer/AuditInterceptor.java", "message": "Replace `javax.inject` import with `jakarta.inject`", "lineNumber": 3, "codeSnip": " 1  package com.example.customer;\n 2  \n 3  import javax.inject.Inject;\n 4  import javax.interceptor.AroundInvoke;", "variables": {}},
+              {"uri": "file:///opt/input/source/src/main/java/com/example/customer/BatchProcessor.java", "message": "Replace `javax.inject` import with `jakarta.inject`", "lineNumber": 4, "codeSnip": " 3  import javax.batch.runtime.context.JobContext;\n 4  import javax.inject.Inject;\n 5  import javax.inject.Named;", "variables": {}},
+              {"uri": "file:///opt/input/source/src/main/java/com/example/customer/BatchProcessor.java", "message": "Replace `javax.inject` import with `jakarta.inject`", "lineNumber": 5, "codeSnip": " 4  import javax.inject.Inject;\n 5  import javax.inject.Named;\n 6  import java.util.logging.Logger;", "variables": {}},
+              {"uri": "file:///opt/input/source/src/main/java/com/example/customer/HealthCheck.java", "message": "Replace `javax.inject` import with `jakarta.inject`", "lineNumber": 5, "codeSnip": " 4  import javax.enterprise.context.ApplicationScoped;\n 5  import javax.inject.Inject;\n 6  import javax.persistence.EntityManager;", "variables": {}},
+              {"uri": "file:///opt/input/source/src/main/java/com/example/customer/CustomerValidator.java", "message": "Replace `javax.inject` import with `jakarta.inject`", "lineNumber": 3, "codeSnip": " 1  package com.example.customer;\n 2  \n 3  import javax.enterprise.context.ApplicationScoped;\n 4  import javax.validation.ValidationException;", "variables": {}},
+              {"uri": "file:///opt/input/source/src/main/java/com/example/customer/CustomerMapper.java", "message": "Replace `javax.inject` import with `jakarta.inject`", "lineNumber": 3, "codeSnip": " 1  package com.example.customer;\n 2  \n 3  import javax.enterprise.context.ApplicationScoped;\n 4  import javax.json.bind.Jsonb;", "variables": {}},
+              {"uri": "file:///opt/input/source/src/main/java/com/example/customer/CacheManager.java", "message": "Replace `javax.inject` import with `jakarta.inject`", "lineNumber": 3, "codeSnip": " 1  package com.example.customer;\n 2  \n 3  import javax.enterprise.context.ApplicationScoped;\n 4  import java.util.Map;", "variables": {}},
+              {"uri": "file:///opt/input/source/src/main/java/com/example/customer/SecurityFilter.java", "message": "Replace `javax.inject` usage - Servlet Filter uses javax.servlet which depends on javax", "lineNumber": 3, "codeSnip": " 1  package com.example.customer;\n 2  \n 3  import javax.servlet.*;\n 4  import javax.servlet.annotation.WebFilter;", "variables": {}},
+              {"uri": "file:///opt/input/source/src/main/java/com/example/customer/AppConfig.java", "message": "Replace `javax.ws.rs` import with `jakarta.ws.rs`", "lineNumber": 3, "codeSnip": " 1  package com.example.customer;\n 2  \n 3  import javax.ws.rs.ApplicationPath;\n 4  import javax.ws.rs.core.Application;", "variables": {}}
+            ]
+          },
+          "javax-to-jakarta-import-00004": {
+            "description": "javax.ws.rs package references must be migrated to jakarta.ws.rs\nThe `javax.ws.rs` package has been replaced by `jakarta.ws.rs` in Jakarta EE 10.",
+            "category": "mandatory",
+            "labels": ["konveyor.io/source=eap7", "konveyor.io/target=eap8"],
+            "effort": 1,
+            "links": [{"url": "https://jakarta.ee/specifications/restful-ws/", "title": "Jakarta RESTful Web Services"}],
+            "incidents": [
+              {"uri": "file:///opt/input/source/src/main/java/com/example/customer/CustomerService.java", "message": "Replace `javax.ws.rs` import with `jakarta.ws.rs`", "lineNumber": 7, "codeSnip": " 6  import javax.persistence.PersistenceContext;\n 7  import javax.ws.rs.*;\n 8  import javax.ws.rs.core.MediaType;", "variables": {}},
+              {"uri": "file:///opt/input/source/src/main/java/com/example/customer/CustomerService.java", "message": "Replace `javax.ws.rs` import with `jakarta.ws.rs`", "lineNumber": 8, "codeSnip": " 7  import javax.ws.rs.*;\n 8  import javax.ws.rs.core.MediaType;\n 9  import javax.ws.rs.core.Response;", "variables": {}},
+              {"uri": "file:///opt/input/source/src/main/java/com/example/customer/CustomerService.java", "message": "Replace `javax.ws.rs` import with `jakarta.ws.rs`", "lineNumber": 9, "codeSnip": " 8  import javax.ws.rs.core.MediaType;\n 9  import javax.ws.rs.core.Response;\n10  import javax.transaction.Transactional;", "variables": {}},
+              {"uri": "file:///opt/input/source/src/main/java/com/example/customer/AppConfig.java", "message": "Replace `javax.ws.rs` import with `jakarta.ws.rs`", "lineNumber": 3, "codeSnip": " 1  package com.example.customer;\n 2  \n 3  import javax.ws.rs.ApplicationPath;\n 4  import javax.ws.rs.core.Application;", "variables": {}},
+              {"uri": "file:///opt/input/source/src/main/java/com/example/customer/AppConfig.java", "message": "Replace `javax.ws.rs` import with `jakarta.ws.rs`", "lineNumber": 4, "codeSnip": " 3  import javax.ws.rs.ApplicationPath;\n 4  import javax.ws.rs.core.Application;\n 5  ", "variables": {}}
+            ]
+          },
+          "javax-to-jakarta-import-00005": {
+            "description": "javax.validation package references must be migrated to jakarta.validation\nThe `javax.validation` package has been replaced by `jakarta.validation` in Jakarta EE 10.",
+            "category": "mandatory",
+            "labels": ["konveyor.io/source=eap7", "konveyor.io/target=eap8"],
+            "effort": 1,
+            "links": [{"url": "https://jakarta.ee/specifications/bean-validation/", "title": "Jakarta Bean Validation"}],
+            "incidents": [
+              {"uri": "file:///opt/input/source/src/main/java/com/example/customer/Customer.java", "message": "Replace `javax.validation` import with `jakarta.validation`", "lineNumber": 4, "codeSnip": " 3  import javax.persistence.*;\n 4  import javax.validation.constraints.NotNull;\n 5  import javax.validation.constraints.Size;", "variables": {}},
+              {"uri": "file:///opt/input/source/src/main/java/com/example/customer/Customer.java", "message": "Replace `javax.validation` import with `jakarta.validation`", "lineNumber": 5, "codeSnip": " 4  import javax.validation.constraints.NotNull;\n 5  import javax.validation.constraints.Size;\n 6  import javax.json.bind.annotation.JsonbProperty;", "variables": {}},
+              {"uri": "file:///opt/input/source/src/main/java/com/example/customer/CustomerValidator.java", "message": "Replace `javax.validation` import with `jakarta.validation`", "lineNumber": 4, "codeSnip": " 3  import javax.enterprise.context.ApplicationScoped;\n 4  import javax.validation.ValidationException;\n 5  ", "variables": {}}
+            ]
+          },
+          "javax-to-jakarta-import-00006": {
+            "description": "javax.enterprise package references must be migrated to jakarta.enterprise\nThe `javax.enterprise` package has been replaced by `jakarta.enterprise` in Jakarta EE 10.",
+            "category": "mandatory",
+            "labels": ["konveyor.io/source=eap7", "konveyor.io/target=eap8"],
+            "effort": 1,
+            "links": [{"url": "https://jakarta.ee/specifications/cdi/", "title": "Jakarta CDI"}],
+            "incidents": [
+              {"uri": "file:///opt/input/source/src/main/java/com/example/customer/CustomerValidator.java", "message": "Replace `javax.enterprise` import with `jakarta.enterprise`", "lineNumber": 3, "codeSnip": " 1  package com.example.customer;\n 2  \n 3  import javax.enterprise.context.ApplicationScoped;\n 4  import javax.validation.ValidationException;", "variables": {}},
+              {"uri": "file:///opt/input/source/src/main/java/com/example/customer/CustomerNotifier.java", "message": "Replace `javax.enterprise` import with `jakarta.enterprise`", "lineNumber": 4, "codeSnip": " 3  import javax.annotation.Resource;\n 4  import javax.enterprise.context.ApplicationScoped;\n 5  import javax.inject.Inject;", "variables": {}},
+              {"uri": "file:///opt/input/source/src/main/java/com/example/customer/HealthCheck.java", "message": "Replace `javax.enterprise` import with `jakarta.enterprise`", "lineNumber": 4, "codeSnip": " 3  import javax.enterprise.context.ApplicationScoped;\n 4  import javax.inject.Inject;\n 5  import javax.persistence.EntityManager;", "variables": {}},
+              {"uri": "file:///opt/input/source/src/main/java/com/example/customer/CustomerMapper.java", "message": "Replace `javax.enterprise` import with `jakarta.enterprise`", "lineNumber": 3, "codeSnip": " 1  package com.example.customer;\n 2  \n 3  import javax.enterprise.context.ApplicationScoped;\n 4  import javax.json.bind.Jsonb;", "variables": {}},
+              {"uri": "file:///opt/input/source/src/main/java/com/example/customer/CacheManager.java", "message": "Replace `javax.enterprise` import with `jakarta.enterprise`", "lineNumber": 3, "codeSnip": " 1  package com.example.customer;\n 2  \n 3  import javax.enterprise.context.ApplicationScoped;\n 4  import java.util.Map;", "variables": {}}
+            ]
+          },
+          "javax-to-jakarta-import-00007": {
+            "description": "javax.jms package references must be migrated to jakarta.jms\nThe `javax.jms` package has been replaced by `jakarta.jms` in Jakarta EE 10.",
+            "category": "mandatory",
+            "labels": ["konveyor.io/source=eap7", "konveyor.io/target=eap8"],
+            "effort": 1,
+            "links": [{"url": "https://jakarta.ee/specifications/messaging/", "title": "Jakarta Messaging"}],
+            "incidents": [
+              {"uri": "file:///opt/input/source/src/main/java/com/example/customer/CustomerEventListener.java", "message": "Replace `javax.jms` import with `jakarta.jms`", "lineNumber": 5, "codeSnip": " 4  import javax.ejb.MessageDriven;\n 5  import javax.jms.Message;\n 6  import javax.jms.MessageListener;", "variables": {}},
+              {"uri": "file:///opt/input/source/src/main/java/com/example/customer/CustomerEventListener.java", "message": "Replace `javax.jms` import with `jakarta.jms`", "lineNumber": 6, "codeSnip": " 5  import javax.jms.Message;\n 6  import javax.jms.MessageListener;\n 7  import javax.jms.TextMessage;", "variables": {}},
+              {"uri": "file:///opt/input/source/src/main/java/com/example/customer/CustomerEventListener.java", "message": "Replace `javax.jms` import with `jakarta.jms`", "lineNumber": 7, "codeSnip": " 6  import javax.jms.MessageListener;\n 7  import javax.jms.TextMessage;\n 8  import javax.inject.Inject;", "variables": {}},
+              {"uri": "file:///opt/input/source/src/main/java/com/example/customer/CustomerNotifier.java", "message": "Replace `javax.jms` import with `jakarta.jms`", "lineNumber": 6, "codeSnip": " 5  import javax.inject.Inject;\n 6  import javax.jms.ConnectionFactory;\n 7  import javax.jms.JMSContext;", "variables": {}},
+              {"uri": "file:///opt/input/source/src/main/java/com/example/customer/CustomerNotifier.java", "message": "Replace `javax.jms` import with `jakarta.jms`", "lineNumber": 7, "codeSnip": " 6  import javax.jms.ConnectionFactory;\n 7  import javax.jms.JMSContext;\n 8  import javax.jms.Queue;", "variables": {}},
+              {"uri": "file:///opt/input/source/src/main/java/com/example/customer/CustomerNotifier.java", "message": "Replace `javax.jms` import with `jakarta.jms`", "lineNumber": 8, "codeSnip": " 7  import javax.jms.JMSContext;\n 8  import javax.jms.Queue;\n 9  ", "variables": {}}
+            ]
+          },
+          "javax-to-jakarta-import-00008": {
+            "description": "javax.servlet package references must be migrated to jakarta.servlet\nThe `javax.servlet` package has been replaced by `jakarta.servlet` in Jakarta EE 10.",
+            "category": "mandatory",
+            "labels": ["konveyor.io/source=eap7", "konveyor.io/target=eap8"],
+            "effort": 3,
+            "links": [{"url": "https://jakarta.ee/specifications/servlet/", "title": "Jakarta Servlet"}],
+            "incidents": [
+              {"uri": "file:///opt/input/source/src/main/java/com/example/customer/SecurityFilter.java", "message": "Replace `javax.servlet` import with `jakarta.servlet`", "lineNumber": 3, "codeSnip": " 1  package com.example.customer;\n 2  \n 3  import javax.servlet.*;\n 4  import javax.servlet.annotation.WebFilter;", "variables": {}},
+              {"uri": "file:///opt/input/source/src/main/java/com/example/customer/SecurityFilter.java", "message": "Replace `javax.servlet` import with `jakarta.servlet`", "lineNumber": 4, "codeSnip": " 3  import javax.servlet.*;\n 4  import javax.servlet.annotation.WebFilter;\n 5  import javax.servlet.http.HttpServletRequest;", "variables": {}},
+              {"uri": "file:///opt/input/source/src/main/java/com/example/customer/SecurityFilter.java", "message": "Replace `javax.servlet` import with `jakarta.servlet`", "lineNumber": 5, "codeSnip": " 4  import javax.servlet.annotation.WebFilter;\n 5  import javax.servlet.http.HttpServletRequest;\n 6  import java.io.IOException;", "variables": {}}
+            ]
+          },
+          "javax-to-jakarta-import-00009": {
+            "description": "javax.json.bind package references must be migrated to jakarta.json.bind\nThe `javax.json.bind` package has been replaced by `jakarta.json.bind` in Jakarta EE 10.",
+            "category": "mandatory",
+            "labels": ["konveyor.io/source=eap7", "konveyor.io/target=eap8"],
+            "effort": 1,
+            "links": [{"url": "https://jakarta.ee/specifications/jsonb/", "title": "Jakarta JSON Binding"}],
+            "incidents": [
+              {"uri": "file:///opt/input/source/src/main/java/com/example/customer/Customer.java", "message": "Replace `javax.json.bind` import with `jakarta.json.bind`", "lineNumber": 6, "codeSnip": " 5  import javax.validation.constraints.Size;\n 6  import javax.json.bind.annotation.JsonbProperty;\n 7  ", "variables": {}},
+              {"uri": "file:///opt/input/source/src/main/java/com/example/customer/CustomerMapper.java", "message": "Replace `javax.json.bind` import with `jakarta.json.bind`", "lineNumber": 4, "codeSnip": " 3  import javax.enterprise.context.ApplicationScoped;\n 4  import javax.json.bind.Jsonb;\n 5  import javax.json.bind.JsonbBuilder;", "variables": {}},
+              {"uri": "file:///opt/input/source/src/main/java/com/example/customer/CustomerMapper.java", "message": "Replace `javax.json.bind` import with `jakarta.json.bind`", "lineNumber": 5, "codeSnip": " 4  import javax.json.bind.Jsonb;\n 5  import javax.json.bind.JsonbBuilder;\n 6  ", "variables": {}}
+            ]
+          },
+          "javax-to-jakarta-import-00010": {
+            "description": "javax.interceptor package references must be migrated to jakarta.interceptor\nThe `javax.interceptor` package has been replaced by `jakarta.interceptor` in Jakarta EE 10.",
+            "category": "mandatory",
+            "labels": ["konveyor.io/source=eap7", "konveyor.io/target=eap8"],
+            "effort": 1,
+            "links": [{"url": "https://jakarta.ee/specifications/interceptors/", "title": "Jakarta Interceptors"}],
+            "incidents": [
+              {"uri": "file:///opt/input/source/src/main/java/com/example/customer/AuditInterceptor.java", "message": "Replace `javax.interceptor` import with `jakarta.interceptor`", "lineNumber": 4, "codeSnip": " 3  import javax.inject.Inject;\n 4  import javax.interceptor.AroundInvoke;\n 5  import javax.interceptor.Interceptor;", "variables": {}},
+              {"uri": "file:///opt/input/source/src/main/java/com/example/customer/AuditInterceptor.java", "message": "Replace `javax.interceptor` import with `jakarta.interceptor`", "lineNumber": 5, "codeSnip": " 4  import javax.interceptor.AroundInvoke;\n 5  import javax.interceptor.Interceptor;\n 6  import javax.interceptor.InvocationContext;", "variables": {}},
+              {"uri": "file:///opt/input/source/src/main/java/com/example/customer/AuditInterceptor.java", "message": "Replace `javax.interceptor` import with `jakarta.interceptor`", "lineNumber": 6, "codeSnip": " 5  import javax.interceptor.Interceptor;\n 6  import javax.interceptor.InvocationContext;\n 7  import java.util.logging.Logger;", "variables": {}}
+            ]
+          },
+          "javax-to-jakarta-import-00011": {
+            "description": "javax.transaction package references must be migrated to jakarta.transaction\nThe `javax.transaction` package has been replaced by `jakarta.transaction` in Jakarta EE 10.",
+            "category": "mandatory",
+            "labels": ["konveyor.io/source=eap7", "konveyor.io/target=eap8"],
+            "effort": 1,
+            "links": [{"url": "https://jakarta.ee/specifications/transactions/", "title": "Jakarta Transactions"}],
+            "incidents": [
+              {"uri": "file:///opt/input/source/src/main/java/com/example/customer/CustomerService.java", "message": "Replace `javax.transaction` import with `jakarta.transaction`", "lineNumber": 10, "codeSnip": " 9  import javax.ws.rs.core.Response;\n10  import javax.transaction.Transactional;\n11  ", "variables": {}}
+            ]
+          }
+        },
+        "insights": {
+          "javax-to-jakarta-insight-00001": {
+            "description": "Java EE XML namespace must be updated to Jakarta EE namespace\nXML descriptors using `xmlns.jcp.org` namespaces should be updated to `jakarta.ee` equivalents.",
+            "category": "optional",
+            "labels": ["konveyor.io/source=eap7", "konveyor.io/target=eap8"],
+            "effort": 0,
+            "links": [{"url": "https://jakarta.ee/xml/ns/jakartaee/", "title": "Jakarta EE XML Namespaces"}],
+            "incidents": [
+              {"uri": "file:///opt/input/source/src/main/webapp/WEB-INF/web.xml", "message": "Update XML namespace from `xmlns.jcp.org` to Jakarta EE namespace", "lineNumber": 2, "codeSnip": " 1  <?xml version=\"1.0\" encoding=\"UTF-8\"?>\n 2  <web-app xmlns=\"http://xmlns.jcp.org/xml/ns/javaee\"\n 3           xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\"", "variables": {}}
+            ]
+          },
+          "javax-to-jakarta-insight-00002": {
+            "description": "Application uses JMS messaging which may require broker configuration changes\nJMS connection factories and destinations may need to be reconfigured for the Jakarta EE 10 runtime.",
+            "category": "potential",
+            "labels": ["konveyor.io/source=eap7", "konveyor.io/target=eap8"],
+            "effort": 0,
+            "links": [{"url": "https://access.redhat.com/documentation/en-us/red_hat_jboss_enterprise_application_platform/8.0/html/migration_guide/", "title": "EAP 8 Migration Guide"}],
+            "incidents": [
+              {"uri": "file:///opt/input/source/src/main/java/com/example/customer/CustomerNotifier.java", "message": "JMS resource lookup may need to be updated for EAP 8", "lineNumber": 12, "codeSnip": "11  \n12      @Resource(lookup = \"java:/jms/queue/CustomerNotifications\")\n13      private Queue notificationQueue;", "variables": {}}
+            ]
+          }
+        }
+      },
+      {
+        "name": "eap8/eap7-batch",
+        "description": "Rules for migrating JBoss EAP 7 batch processing to EAP 8",
+        "tags": ["Java EE=Batch"],
+        "violations": {
+          "javax-to-jakarta-batch-00001": {
+            "description": "javax.batch package references must be migrated to jakarta.batch\nThe `javax.batch` package has been replaced by `jakarta.batch` in Jakarta EE 10.",
+            "category": "optional",
+            "labels": ["konveyor.io/source=eap7", "konveyor.io/target=eap8"],
+            "effort": 5,
+            "links": [{"url": "https://jakarta.ee/specifications/batch/", "title": "Jakarta Batch"}],
+            "incidents": [
+              {"uri": "file:///opt/input/source/src/main/java/com/example/customer/BatchProcessor.java", "message": "Replace `javax.batch` import with `jakarta.batch`", "lineNumber": 3, "codeSnip": " 1  package com.example.customer;\n 2  \n 3  import javax.batch.api.AbstractBatchlet;\n 4  import javax.batch.runtime.context.JobContext;", "variables": {}},
+              {"uri": "file:///opt/input/source/src/main/java/com/example/customer/BatchProcessor.java", "message": "Replace `javax.batch` import with `jakarta.batch`", "lineNumber": 4, "codeSnip": " 3  import javax.batch.api.AbstractBatchlet;\n 4  import javax.batch.runtime.context.JobContext;\n 5  import javax.inject.Inject;", "variables": {}}
+            ]
+          }
+        },
+        "insights": {
+          "eap7-batch-insight-00001": {
+            "description": "Batch job XML descriptors should be reviewed for Jakarta Batch compatibility\nJob XML files under META-INF/batch-jobs/ may need namespace updates.",
+            "category": "potential",
+            "labels": ["konveyor.io/source=eap7", "konveyor.io/target=eap8"],
+            "effort": 0,
+            "links": [{"url": "https://jakarta.ee/specifications/batch/2.1/", "title": "Jakarta Batch 2.1 Spec"}],
+            "incidents": [
+              {"uri": "file:///opt/input/source/src/main/java/com/example/customer/BatchProcessor.java", "message": "Review batch job XML descriptors for Jakarta Batch compatibility", "lineNumber": 1, "codeSnip": " 1  package com.example.customer;\n 2  \n 3  import javax.batch.api.AbstractBatchlet;", "variables": {}}
+            ]
+          }
+        }
+      }
+    ],
+    "depItems": [
+      {
+        "fileURI": "file:///opt/input/source/pom.xml",
+        "provider": "java",
+        "dependencies": [
+          {"name": "javax:javaee-api", "version": "8.0", "indirect": false, "labels": ["konveyor.io/dep-source=open-source", "konveyor.io/language=java"], "fileURIPrefix": "file:///opt/input/source", "resolvedIdentifier": "javax:javaee-api:8.0"},
+          {"name": "org.jboss.spec:jboss-javaee-8.0", "version": "1.0.4.Final", "indirect": false, "labels": ["konveyor.io/dep-source=open-source", "konveyor.io/language=java"], "fileURIPrefix": "file:///opt/input/source", "resolvedIdentifier": "org.jboss.spec:jboss-javaee-8.0:1.0.4.Final"},
+          {"name": "org.hibernate:hibernate-core", "version": "5.3.28.Final", "indirect": true, "labels": ["konveyor.io/dep-source=open-source", "konveyor.io/language=java"], "fileURIPrefix": "file:///opt/input/source", "resolvedIdentifier": "org.hibernate:hibernate-core:5.3.28.Final"},
+          {"name": "com.fasterxml.jackson.core:jackson-databind", "version": "2.12.7", "indirect": true, "labels": ["konveyor.io/dep-source=open-source", "konveyor.io/language=java"], "fileURIPrefix": "file:///opt/input/source", "resolvedIdentifier": "com.fasterxml.jackson.core:jackson-databind:2.12.7"},
+          {"name": "org.slf4j:slf4j-api", "version": "1.7.36", "indirect": true, "labels": ["konveyor.io/dep-source=open-source", "konveyor.io/language=java"], "fileURIPrefix": "file:///opt/input/source", "resolvedIdentifier": "org.slf4j:slf4j-api:1.7.36"},
+          {"name": "junit:junit", "version": "4.13.2", "indirect": false, "labels": ["konveyor.io/dep-source=open-source", "konveyor.io/language=java"], "fileURIPrefix": "file:///opt/input/source", "resolvedIdentifier": "junit:junit:4.13.2"}
+        ]
+      }
+    ]
+  },
+  {
+    "id": "2",
+    "name": "inventory-service",
+    "files": {
+      "file:///opt/input/source/src/main/java/com/example/inventory/InventoryResource.java": "package com.example.inventory;\n\nimport javax.inject.Inject;\nimport javax.ws.rs.*;\nimport javax.ws.rs.core.MediaType;\nimport javax.ws.rs.core.Response;\n\n@Path(\"/inventory\")\n@Produces(MediaType.APPLICATION_JSON)\n@Consumes(MediaType.APPLICATION_JSON)\npublic class InventoryResource {\n\n    @Inject\n    private InventoryRepository repo;\n\n    @GET\n    public Response list() {\n        return Response.ok(repo.findAll()).build();\n    }\n\n    @PUT\n    @Path(\"/{sku}\")\n    public Response update(@PathParam(\"sku\") String sku, InventoryItem item) {\n        repo.update(sku, item);\n        return Response.ok(item).build();\n    }\n}\n",
+      "file:///opt/input/source/src/main/java/com/example/inventory/InventoryItem.java": "package com.example.inventory;\n\nimport javax.persistence.*;\nimport javax.validation.constraints.Min;\nimport javax.validation.constraints.NotNull;\n\n@Entity\n@Table(name = \"inventory\")\npublic class InventoryItem {\n\n    @Id\n    private String sku;\n\n    @NotNull\n    private String name;\n\n    @Min(0)\n    @Column(name = \"quantity\")\n    private int quantity;\n\n    public String getSku() { return sku; }\n    public void setSku(String sku) { this.sku = sku; }\n    public String getName() { return name; }\n    public void setName(String name) { this.name = name; }\n    public int getQuantity() { return quantity; }\n    public void setQuantity(int quantity) { this.quantity = quantity; }\n}\n",
+      "file:///opt/input/source/src/main/java/com/example/inventory/InventoryRepository.java": "package com.example.inventory;\n\nimport javax.enterprise.context.ApplicationScoped;\nimport javax.persistence.EntityManager;\nimport javax.persistence.PersistenceContext;\nimport javax.transaction.Transactional;\nimport java.util.List;\n\n@ApplicationScoped\npublic class InventoryRepository {\n\n    @PersistenceContext\n    private EntityManager em;\n\n    public List<InventoryItem> findAll() {\n        return em.createQuery(\"SELECT i FROM InventoryItem i\", InventoryItem.class).getResultList();\n    }\n\n    @Transactional\n    public void update(String sku, InventoryItem item) {\n        item.setSku(sku);\n        em.merge(item);\n    }\n}\n",
+      "file:///opt/input/source/src/main/java/com/example/inventory/InventoryApp.java": "package com.example.inventory;\n\nimport javax.ws.rs.ApplicationPath;\nimport javax.ws.rs.core.Application;\n\n@ApplicationPath(\"/api\")\npublic class InventoryApp extends Application {\n}\n"
+    },
+    "rulesets": [
+      {
+        "name": "eap8/eap7",
+        "description": "Rules for migrating from JBoss EAP 7 to EAP 8 (Jakarta EE 10)",
+        "tags": ["Java EE=JPA,CDI,JAX-RS", "Runtime=EAP"],
+        "violations": {
+          "javax-to-jakarta-import-00001": {
+            "description": "javax.ws.rs package references must be migrated to jakarta.ws.rs\nThe `javax.ws.rs` package has been replaced by `jakarta.ws.rs` in Jakarta EE 10.",
+            "category": "mandatory",
+            "labels": ["konveyor.io/source=eap7", "konveyor.io/target=eap8"],
+            "effort": 1,
+            "links": [{"url": "https://jakarta.ee/specifications/restful-ws/", "title": "Jakarta RESTful Web Services"}],
+            "incidents": [
+              {"uri": "file:///opt/input/source/src/main/java/com/example/inventory/InventoryResource.java", "message": "Replace `javax.ws.rs` import with `jakarta.ws.rs`", "lineNumber": 4, "codeSnip": " 3  import javax.inject.Inject;\n 4  import javax.ws.rs.*;\n 5  import javax.ws.rs.core.MediaType;", "variables": {}},
+              {"uri": "file:///opt/input/source/src/main/java/com/example/inventory/InventoryResource.java", "message": "Replace `javax.ws.rs` import with `jakarta.ws.rs`", "lineNumber": 5, "codeSnip": " 4  import javax.ws.rs.*;\n 5  import javax.ws.rs.core.MediaType;\n 6  import javax.ws.rs.core.Response;", "variables": {}},
+              {"uri": "file:///opt/input/source/src/main/java/com/example/inventory/InventoryResource.java", "message": "Replace `javax.ws.rs` import with `jakarta.ws.rs`", "lineNumber": 6, "codeSnip": " 5  import javax.ws.rs.core.MediaType;\n 6  import javax.ws.rs.core.Response;\n 7  ", "variables": {}},
+              {"uri": "file:///opt/input/source/src/main/java/com/example/inventory/InventoryApp.java", "message": "Replace `javax.ws.rs` import with `jakarta.ws.rs`", "lineNumber": 3, "codeSnip": " 1  package com.example.inventory;\n 2  \n 3  import javax.ws.rs.ApplicationPath;\n 4  import javax.ws.rs.core.Application;", "variables": {}},
+              {"uri": "file:///opt/input/source/src/main/java/com/example/inventory/InventoryApp.java", "message": "Replace `javax.ws.rs` import with `jakarta.ws.rs`", "lineNumber": 4, "codeSnip": " 3  import javax.ws.rs.ApplicationPath;\n 4  import javax.ws.rs.core.Application;\n 5  ", "variables": {}}
+            ]
+          },
+          "javax-to-jakarta-import-00002": {
+            "description": "javax.persistence package references must be migrated to jakarta.persistence\nThe `javax.persistence` package has been replaced by `jakarta.persistence` in Jakarta EE 10.",
+            "category": "mandatory",
+            "labels": ["konveyor.io/source=eap7", "konveyor.io/target=eap8"],
+            "effort": 1,
+            "links": [{"url": "https://jakarta.ee/specifications/persistence/", "title": "Jakarta Persistence"}],
+            "incidents": [
+              {"uri": "file:///opt/input/source/src/main/java/com/example/inventory/InventoryItem.java", "message": "Replace `javax.persistence` import with `jakarta.persistence`", "lineNumber": 3, "codeSnip": " 1  package com.example.inventory;\n 2  \n 3  import javax.persistence.*;\n 4  import javax.validation.constraints.Min;", "variables": {}},
+              {"uri": "file:///opt/input/source/src/main/java/com/example/inventory/InventoryRepository.java", "message": "Replace `javax.persistence` import with `jakarta.persistence`", "lineNumber": 4, "codeSnip": " 3  import javax.enterprise.context.ApplicationScoped;\n 4  import javax.persistence.EntityManager;\n 5  import javax.persistence.PersistenceContext;", "variables": {}},
+              {"uri": "file:///opt/input/source/src/main/java/com/example/inventory/InventoryRepository.java", "message": "Replace `javax.persistence` import with `jakarta.persistence`", "lineNumber": 5, "codeSnip": " 4  import javax.persistence.EntityManager;\n 5  import javax.persistence.PersistenceContext;\n 6  import javax.transaction.Transactional;", "variables": {}}
+            ]
+          },
+          "javax-to-jakarta-import-00003": {
+            "description": "javax.validation package references must be migrated to jakarta.validation\nThe `javax.validation` package has been replaced by `jakarta.validation` in Jakarta EE 10.",
+            "category": "mandatory",
+            "labels": ["konveyor.io/source=eap7", "konveyor.io/target=eap8"],
+            "effort": 1,
+            "links": [{"url": "https://jakarta.ee/specifications/bean-validation/", "title": "Jakarta Bean Validation"}],
+            "incidents": [
+              {"uri": "file:///opt/input/source/src/main/java/com/example/inventory/InventoryItem.java", "message": "Replace `javax.validation` import with `jakarta.validation`", "lineNumber": 4, "codeSnip": " 3  import javax.persistence.*;\n 4  import javax.validation.constraints.Min;\n 5  import javax.validation.constraints.NotNull;", "variables": {}},
+              {"uri": "file:///opt/input/source/src/main/java/com/example/inventory/InventoryItem.java", "message": "Replace `javax.validation` import with `jakarta.validation`", "lineNumber": 5, "codeSnip": " 4  import javax.validation.constraints.Min;\n 5  import javax.validation.constraints.NotNull;\n 6  ", "variables": {}}
+            ]
+          },
+          "javax-to-jakarta-import-00004": {
+            "description": "javax.enterprise package references must be migrated to jakarta.enterprise\nThe `javax.enterprise` package has been replaced by `jakarta.enterprise` in Jakarta EE 10.",
+            "category": "optional",
+            "labels": ["konveyor.io/source=eap7", "konveyor.io/target=eap8"],
+            "effort": 1,
+            "links": [{"url": "https://jakarta.ee/specifications/cdi/", "title": "Jakarta CDI"}],
+            "incidents": [
+              {"uri": "file:///opt/input/source/src/main/java/com/example/inventory/InventoryRepository.java", "message": "Replace `javax.enterprise` import with `jakarta.enterprise`", "lineNumber": 3, "codeSnip": " 1  package com.example.inventory;\n 2  \n 3  import javax.enterprise.context.ApplicationScoped;\n 4  import javax.persistence.EntityManager;", "variables": {}}
+            ]
+          },
+          "javax-to-jakarta-import-00005": {
+            "description": "javax.inject package references must be migrated to jakarta.inject\nThe `javax.inject` package has been replaced by `jakarta.inject` in Jakarta EE 10.",
+            "category": "mandatory",
+            "labels": ["konveyor.io/source=eap7", "konveyor.io/target=eap8"],
+            "effort": 1,
+            "links": [{"url": "https://jakarta.ee/specifications/dependency-injection/", "title": "Jakarta Dependency Injection"}],
+            "incidents": [
+              {"uri": "file:///opt/input/source/src/main/java/com/example/inventory/InventoryResource.java", "message": "Replace `javax.inject` import with `jakarta.inject`", "lineNumber": 3, "codeSnip": " 1  package com.example.inventory;\n 2  \n 3  import javax.inject.Inject;\n 4  import javax.ws.rs.*;", "variables": {}}
+            ]
+          }
+        },
+        "insights": {
+          "eap7-insight-00001": {
+            "description": "Application uses JPA which is well supported in Jakarta EE 10\nNo significant changes are expected for basic JPA usage patterns.",
+            "category": "potential",
+            "labels": ["konveyor.io/source=eap7", "konveyor.io/target=eap8"],
+            "effort": 0,
+            "links": [{"url": "https://jakarta.ee/specifications/persistence/3.1/", "title": "Jakarta Persistence 3.1"}],
+            "incidents": [
+              {"uri": "file:///opt/input/source/src/main/java/com/example/inventory/InventoryRepository.java", "message": "JPA usage is compatible with Jakarta Persistence 3.1", "lineNumber": 16, "codeSnip": "15      public List<InventoryItem> findAll() {\n16          return em.createQuery(\"SELECT i FROM InventoryItem i\", InventoryItem.class).getResultList();\n17      }", "variables": {}}
+            ]
+          },
+          "eap7-insight-00002": {
+            "description": "CDI @ApplicationScoped beans are fully supported in Jakarta CDI 4.0\nNo migration action required for standard CDI scope annotations.",
+            "category": "potential",
+            "labels": ["konveyor.io/source=eap7", "konveyor.io/target=eap8"],
+            "effort": 0,
+            "links": [{"url": "https://jakarta.ee/specifications/cdi/4.0/", "title": "Jakarta CDI 4.0"}],
+            "incidents": [
+              {"uri": "file:///opt/input/source/src/main/java/com/example/inventory/InventoryRepository.java", "message": "CDI scope annotation usage is compatible with Jakarta CDI 4.0", "lineNumber": 9, "codeSnip": " 8  \n 9  @ApplicationScoped\n10  public class InventoryRepository {", "variables": {}}
+            ]
+          }
+        }
+      },
+      {
+        "name": "eap8/eap7-transaction",
+        "description": "Rules for migrating JBoss EAP 7 transaction management to EAP 8",
+        "tags": ["Java EE=JTA"],
+        "violations": {
+          "javax-to-jakarta-transaction-00001": {
+            "description": "javax.transaction package references must be migrated to jakarta.transaction\nThe `javax.transaction` package has been replaced by `jakarta.transaction` in Jakarta EE 10.",
+            "category": "potential",
+            "labels": ["konveyor.io/source=eap7", "konveyor.io/target=eap8"],
+            "effort": 7,
+            "links": [{"url": "https://jakarta.ee/specifications/transactions/", "title": "Jakarta Transactions"}],
+            "incidents": [
+              {"uri": "file:///opt/input/source/src/main/java/com/example/inventory/InventoryRepository.java", "message": "Replace `javax.transaction` import with `jakarta.transaction`", "lineNumber": 6, "codeSnip": " 5  import javax.persistence.PersistenceContext;\n 6  import javax.transaction.Transactional;\n 7  import java.util.List;", "variables": {}}
+            ]
+          }
+        },
+        "insights": {
+          "eap7-transaction-insight-00001": {
+            "description": "Review transaction timeout configuration for EAP 8 compatibility\nDefault transaction timeout values may differ between EAP 7 and EAP 8.",
+            "category": "optional",
+            "labels": ["konveyor.io/source=eap7", "konveyor.io/target=eap8"],
+            "effort": 0,
+            "links": [{"url": "https://access.redhat.com/documentation/en-us/red_hat_jboss_enterprise_application_platform/8.0/html/migration_guide/", "title": "EAP 8 Migration Guide"}],
+            "incidents": [
+              {"uri": "file:///opt/input/source/src/main/java/com/example/inventory/InventoryRepository.java", "message": "Review transaction timeout settings for EAP 8", "lineNumber": 19, "codeSnip": "18  \n19      @Transactional\n20      public void update(String sku, InventoryItem item) {", "variables": {}}
+            ]
+          }
+        }
+      }
+    ],
+    "depItems": [
+      {
+        "fileURI": "file:///opt/input/source/pom.xml",
+        "provider": "java",
+        "dependencies": [
+          {"name": "javax:javaee-api", "version": "8.0", "indirect": false, "labels": ["konveyor.io/dep-source=open-source", "konveyor.io/language=java"], "fileURIPrefix": "file:///opt/input/source", "resolvedIdentifier": "javax:javaee-api:8.0"},
+          {"name": "org.hibernate:hibernate-core", "version": "5.3.28.Final", "indirect": true, "labels": ["konveyor.io/dep-source=open-source", "konveyor.io/language=java"], "fileURIPrefix": "file:///opt/input/source", "resolvedIdentifier": "org.hibernate:hibernate-core:5.3.28.Final"},
+          {"name": "com.h2database:h2", "version": "1.4.200", "indirect": false, "labels": ["konveyor.io/dep-source=open-source", "konveyor.io/language=java"], "fileURIPrefix": "file:///opt/input/source", "resolvedIdentifier": "com.h2database:h2:1.4.200"},
+          {"name": "org.jboss.logging:jboss-logging", "version": "3.4.3.Final", "indirect": true, "labels": ["konveyor.io/dep-source=internal", "konveyor.io/language=java"], "fileURIPrefix": "file:///opt/input/source", "resolvedIdentifier": "org.jboss.logging:jboss-logging:3.4.3.Final"},
+          {"name": "org.apache.commons:commons-lang3", "version": "3.12.0", "indirect": false, "labels": ["konveyor.io/dep-source=open-source", "konveyor.io/language=java"], "fileURIPrefix": "file:///opt/input/source", "resolvedIdentifier": "org.apache.commons:commons-lang3:3.12.0"}
+        ]
+      }
+    ]
+  }
+];

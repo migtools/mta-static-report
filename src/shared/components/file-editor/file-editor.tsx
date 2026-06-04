@@ -5,17 +5,14 @@ import {
   CardBody,
   CardHeader,
   CardTitle,
+  Content,
   Drawer,
   DrawerContent,
   DrawerContentBody,
   DrawerHead,
   DrawerPanelContent,
   EmptyState,
-  EmptyStateIcon,
   EmptyStateVariant,
-  Text,
-  Title,
-  TextContent,
 } from "@patternfly/react-core";
 
 import {
@@ -29,7 +26,8 @@ import InfoAltIcon from "@patternfly/react-icons/dist/esm/icons/info-alt-icon";
 import * as monacoEditor from "monaco-editor/esm/vs/editor/editor.api";
 
 import { LinkDto } from "@app/api/report";
-import { ConditionalRender, SimpleMarkdown } from "@app/shared/components";
+import { ConditionalRender } from "@app/shared/components/conditional-render";
+import { SimpleMarkdown } from "@app/shared/components/simple-markdown";
 import { getMarkdown } from "@app/utils/utils";
 import { IssueProcessed } from "@app/models/api-enriched";
 import { IncidentCoordinates } from "@app/models/file";
@@ -192,12 +190,8 @@ export const FileEditor: React.FC<IFileEditorProps> = ({
               <Card isLarge>
                 <CardHeader>
                   <CardTitle>
-                    <TextContent>
-                      <Text component="h1">{issue.name}</Text>
-                    </TextContent>
-                    <TextContent>
-                      <Text component="small">{issue.ruleID}</Text>
-                    </TextContent>
+                    <Content component="h1">{issue.name}</Content>
+                    <Content component="small">{issue.ruleID}</Content>
                   </CardTitle>
                 </CardHeader>
                 <CardBody>
@@ -221,12 +215,7 @@ export const FileEditor: React.FC<IFileEditorProps> = ({
             then={<span>Loading...</span>}
           >
             {
-              codeSnip === "" ? (<EmptyState variant={EmptyStateVariant.lg}>
-                <EmptyStateIcon icon={InfoAltIcon} />
-                <Title headingLevel="h4" size="md">
-                  Code snippet unavailable
-                </Title>
-              </EmptyState>) : (<CodeEditor
+              codeSnip === "" ? (<EmptyState variant={EmptyStateVariant.lg} icon={InfoAltIcon} headingLevel="h4" titleText="Code snippet unavailable" />) : (<CodeEditor
                 isDarkTheme
                 isLineNumbersVisible
                 isReadOnly={true}
@@ -242,6 +231,7 @@ export const FileEditor: React.FC<IFileEditorProps> = ({
                   glyphMargin: true,
                   "semanticHighlighting.enabled": true,
                   renderValidationDecorations: "on",
+                  hover: { above: false },
                   lineNumbers: (lineNum: number) =>
                     String(relativeToAbsoluteLineNum(lineNum))
                 }}

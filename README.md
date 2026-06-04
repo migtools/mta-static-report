@@ -33,6 +33,12 @@ To run the project in development mode:
   ```
   This will open the UI in your browser. Replace `public/output.js` file with one generated for an actual analysis.
 
+* To use sample data for testing, copy the provided sample file:
+
+  ```sh
+  cp output.js.sample public/output.js
+  ```
+
 ### Running in production mode
 
 This is how the project gets packaged in [kantra](https://github.com/konveyor/kantra).

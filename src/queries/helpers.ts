@@ -1,8 +1,8 @@
 import { UseQueryOptions, useQuery } from "@tanstack/react-query";
 
 const defaultTimeout =
-  process.env.REACT_APP_DATA_SOURCE_TIMEOUT !== undefined
-    ? Number(process.env.REACT_APP_DATA_SOURCE_TIMEOUT)
+  import.meta.env.VITE_DATA_SOURCE_TIMEOUT !== undefined
+    ? Number(import.meta.env.VITE_DATA_SOURCE_TIMEOUT)
     : 1000;
 
 const mockPromise = <TQueryFnData>(
@@ -33,7 +33,7 @@ export const useMockableQuery = <
   return useQuery<TQueryFnData, TError, TData>({
     ...params,
     queryFn:
-      (process.env.REACT_APP_DATA_SOURCE === "mock")
+      (import.meta.env.VITE_DATA_SOURCE === "mock")
         ? () => mockPromise(mockData)
         : () => mockPromise(offlineData)
   });

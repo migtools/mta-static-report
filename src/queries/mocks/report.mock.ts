@@ -7,8 +7,8 @@ export let MOCK_RULESETS: RulesetDto[];
 export let MOCK_FILES: FileDto;
 
 if (
-    process.env.NODE_ENV === "test" ||
-    process.env.REACT_APP_DATA_SOURCE === "mock"
+    import.meta.env.MODE === "test" ||
+    import.meta.env.VITE_DATA_SOURCE === "mock"
   ) {
   const rs1: RulesetDto = {
     description: "Test Ruleset 1",
