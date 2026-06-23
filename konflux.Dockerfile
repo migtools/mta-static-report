@@ -19,13 +19,13 @@ RUN sed -i -e 's/\(name: "\)[^"]*"/\1Migration Toolkit for Applications"/' \
     -e 's/\(websiteURL: "\)[^"]*"/\1https:\/\/developers.redhat.com\/products\/mta\/overview"/' \
     -e 's/\(documentationURL: "\)[^"]*"/\1https:\/\/access.redhat.com\/documentation\/en-us\/migration_toolkit_for_applications"/' \
     src/layout/theme-constants.ts
-RUN npm clean-install --no-audit --verbose && CI=true PUBLIC_URL=. npm run build
+RUN npm clean-install && npm run build
 
 FROM registry.redhat.io/ubi10:latest
 RUN dnf -y install openssl && dnf -y clean all
 
 COPY --from=go-builder /workspace/analyzer-output-parser/js-bundle-generator /usr/bin/js-bundle-generator
-COPY --from=nodejs-builder /workspace/build /usr/local/static-report
+COPY --from=nodejs-builder /workspace/dist /usr/local/static-report
 COPY --from=nodejs-builder /workspace/LICENSE /licenses/
 
 ENTRYPOINT ["js-bundle-generator"]
