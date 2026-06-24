@@ -8,6 +8,7 @@ export default defineConfig({
     react(),
     {
       name: 'remove-module-and-crossorigin',
+      apply: 'build',
       transformIndexHtml(html) {
         // Remove type="module" and crossorigin to make it work with file:// protocol
         // Also add defer to scripts to ensure they load in order

@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import {
   Link,
   Outlet,
@@ -56,10 +56,28 @@ export const ApplicationEdit: React.FC = () => {
         path: `/applications/${application?.id}/technologies`,
       },
     ];
+
+    if ((application?.ruleErrors.length || 0) > 0) {
+      result.push({
+        title: "Errors",
+        path: `/applications/${application?.id}/errors`,
+      });
+    }
+
     return result;
   }, [
     application,
   ]);
+
+  useEffect(() => {
+    if (
+      application &&
+      application.ruleErrors.length === 0 &&
+      location.pathname.endsWith("/errors")
+    ) {
+      navigate(`/applications/${application.id}/dashboard`, { replace: true });
+    }
+  }, [application, location.pathname, navigate]);
 
   return (
     <>

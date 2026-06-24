@@ -7,3 +7,4 @@ export * from "./simple-markdown";
 export * from "./file-editor";
 export * from "./table-controls";
 export * from "./violations-table";
+export * from "./rule-errors";

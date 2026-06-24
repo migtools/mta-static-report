@@ -20,6 +20,9 @@ export interface RulesetDto {
     insights?: {
         [key: string]: IssueDto;
     }
+    errors?: {
+        [key: string]: string;
+    }
 }
 
 export interface IssueDto {

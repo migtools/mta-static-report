@@ -9,9 +9,19 @@ export interface ApplicationProcessed {
   name: string;
   issues: IssueProcessed[];
   insights: IssueProcessed[];
+  ruleErrors: RuleErrorProcessed[];
   dependencies: DependencyProcessed[];
   tags: TagDto[];
   tagsFlat: string[];
+}
+
+export interface RuleErrorProcessed {
+  id: string;
+  appID: string;
+  applicationName: string;
+  ruleID: string;
+  rulesetName: string;
+  message: string;
 }
 
 export interface IssueProcessed {

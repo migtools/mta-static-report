@@ -13,7 +13,8 @@ import {
   ApplicationProcessed,
   DependencyProcessed,
   IssueProcessed,
-  IssueCatType
+  IssueCatType,
+  RuleErrorProcessed,
 } from "@app/models/api-enriched";
 import { useMockableQuery } from "./helpers";
 import { MOCK_APPS } from "./mocks/report.mock";
@@ -159,6 +160,21 @@ const dependenciesFromDependencyDto = (deps: DependencyDto[]): DependencyProcess
   }) || [] as DependencyProcessed[];
 }
 
+// converts rule errors from analyzer output to RuleErrorProcessed[]
+const ruleErrorsFromRulesetsDto = (appID: string, appName: string, rulesets: RulesetDto[]): RuleErrorProcessed[] => {
+  return rulesets.flatMap((rs) => {
+    const keys = Object.keys(rs.errors || {});
+    return keys.map((ruleID) => ({
+      id: appID + rs.name + ruleID,
+      appID,
+      applicationName: appName,
+      ruleID,
+      rulesetName: rs.name,
+      message: rs.errors![ruleID],
+    }));
+  });
+};
+
 // transforms tags from analyzer into TagDto[]
 const tagsFromRulesetsDto = (rulesets: RulesetDto[]): TagDto[] => {
   return (rulesets || []).flatMap((rs) =>
@@ -190,6 +206,10 @@ export const useAllApplications = () => {
           tagsFromRulesetsDto(a.rulesets) :
             (a.tags || [] as TagDto[]);
 
+        const ruleErrors: RuleErrorProcessed[] = a.rulesets ?
+          ruleErrorsFromRulesetsDto(a.id, a.name, a.rulesets) :
+          [] as RuleErrorProcessed[];
+
         const tagsFlat: string[] = Array.from(
           new Set(tags.flatMap((t) => t.name))).sort((a, b) => a.localeCompare(b)) || [];
 
@@ -210,6 +230,7 @@ export const useAllApplications = () => {
           id: String(a.id),
           issues,
           insights,
+          ruleErrors,
           tags,
           tagsFlat,
           dependencies,

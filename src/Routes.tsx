@@ -15,6 +15,9 @@ const AppEditDashboard = lazy(
 const AppEditIssues = lazy(
   () => import("./pages/application-details/pages/issues")
 );
+const AppEditRuleErrors = lazy(
+  () => import("./pages/application-details/pages/rule-errors")
+);
 const AppEditDependencies = lazy(
   () => import("./pages/application-details/pages/dependencies")
 );
@@ -100,6 +103,10 @@ export const AppRoutes = () => {
         {
           Component: AppEditIssues,
           path: "issues",
+        },
+        {
+          Component: AppEditRuleErrors,
+          path: "errors",
         },
         {
           Component: AppInsights,
