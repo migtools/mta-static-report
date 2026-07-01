@@ -1,87 +1,68 @@
 import React from "react";
-import { NavLink } from "react-router-dom";
+import { NavLink as RouterNavLink, useLocation } from "react-router-dom";
 
 import { Nav, NavItem, NavList, PageSidebar } from "@patternfly/react-core";
-import { css } from "@patternfly/react-styles";
 
 import { useSimpleContext } from "@app/context/simple-context";
 
+// Wrapper component to adapt PatternFly's href prop to React Router's to prop
+const NavLinkAdapter = React.forwardRef<
+  HTMLAnchorElement,
+  React.ComponentPropsWithoutRef<typeof RouterNavLink> & { href?: string }
+>(({ href, ...props }, ref) => {
+  return <RouterNavLink ref={ref} to={href || "#"} {...props} />;
+});
+NavLinkAdapter.displayName = "NavLinkAdapter";
+
 export const SidebarApp: React.FC = () => {
   const { currentContext } = useSimpleContext();
+  const location = useLocation();
 
   const renderPageNav = () => {
     return (
       <Nav id="nav-sidebar" aria-label="Nav">
         <NavList>
           <NavItem
-            component={({ className, children, ...props }) => (
-              <NavLink
-                {...props}
-                to="/applications"
-                className={({ isActive }) =>
-                  css(className, isActive ? "pf-m-current" : "")
-                }
-              >
-                {children}
-              </NavLink>
-            )}
+            itemId="applications"
+            to="/applications"
+            component={NavLinkAdapter}
+            isActive={location.pathname.startsWith("/applications")}
           >
             Applications
           </NavItem>
           <NavItem
-            component={({ className, children, ...props }) => (
-              <NavLink
-                {...props}
-                to={
-                  !currentContext
-                    ? "/issues/applications"
-                    : "/issues/applications/" + currentContext.key
-                }
-                className={({ isActive }) =>
-                  css(className, isActive ? "pf-m-current" : "")
-                }
-              >
-                {children}
-              </NavLink>
-            )}
+            itemId="issues"
+            to={
+              !currentContext
+                ? "/issues/applications"
+                : "/issues/applications/" + currentContext.key
+            }
+            component={NavLinkAdapter}
+            isActive={location.pathname.startsWith("/issues")}
           >
             Issues
           </NavItem>
           <NavItem
-            component={({ className, children, ...props }) => (
-              <NavLink
-                {...props}
-                to={
-                  !currentContext
-                    ? "/insights/applications"
-                    : "/insights/applications/" + currentContext.key
-                }
-                className={({ isActive }) =>
-                  css(className, isActive ? "pf-m-current" : "")
-                }
-              >
-                {children}
-              </NavLink>
-            )}
+            itemId="insights"
+            to={
+              !currentContext
+                ? "/insights/applications"
+                : "/insights/applications/" + currentContext.key
+            }
+            component={NavLinkAdapter}
+            isActive={location.pathname.startsWith("/insights")}
           >
             Insights
           </NavItem>
           <NavItem
-            component={({ className, children, ...props }) => (
-              <NavLink
-                {...props}
-                to={
-                  !currentContext
-                    ? "/dependencies/applications"
-                    : "/dependencies/applications/" + currentContext.key
-                }
-                className={({ isActive }) =>
-                  css(className, isActive ? "pf-m-current" : "")
-                }
-              >
-                {children}
-              </NavLink>
-            )}
+            itemId="dependencies"
+            to={
+              !currentContext
+                ? "/dependencies/applications"
+                : "/dependencies/applications/" + currentContext.key
+            }
+            component={NavLinkAdapter}
+            isActive={location.pathname.startsWith("/dependencies")}
           >
             Dependencies
           </NavItem>
